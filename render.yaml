@@ -2,7 +2,7 @@ services:
   - type: web
     name: tatya
     runtime: python
-    buildCommand: "echo 'Building Tatya...'"
+    buildCommand: "pip install -r requirements.txt"
     startCommand: "python3 cli.py serve --port $PORT"
     envVars:
       - key: PORT
