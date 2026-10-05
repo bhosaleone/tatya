@@ -118,9 +118,8 @@ BILINGUAL_CONCEPT_MAP: dict[str, list[str]] = {
 
 
 def normalize_marathi_word(token: str) -> list[str]:
-    """Normalizes a Marathi word by stripping suffixes, normalizing eyelash-Ra,
-
-    and generating root lemmas (e.g. शेतकऱ्यांना -> [शेतकरी, शेतकर, शेतक]).
+    """Normalizes a Marathi word by stripping Vibhakti suffixes, normalizing eyelash-Ra,
+    and generating canonical root lemmas (e.g. शेतकऱ्यांना -> [शेतकरी, शेतकर], पुण्यात -> [पुणे], शिवरायांनी -> [शिवराय, शिवाजी]).
     """
     word = fold(token).strip()
     if len(word) <= 2:
@@ -133,31 +132,77 @@ def normalize_marathi_word(token: str) -> list[str]:
     if ra_normalized != word:
         stems.append(ra_normalized)
 
-    # Check for suffix stripping
-    matched_suffix = None
-    for suffix in MARATHI_SUFFIXES:
-        if word.endswith(suffix) and len(word) - len(suffix) >= 2:
-            base = word[:-len(suffix)]
-            stems.append(base)
-            matched_suffix = suffix
-            # For words ending in ऱ्या / ्या (oblique), restore canonical lemma
-            # e.g., शेतकऱ्या -> शेतकरी, शेतकर
-            if suffix.startswith("ऱ्या") or suffix.startswith("्या"):
-                stems.append(base + "ी")   # e.g. शेतकरी
-                stems.append(base + "र")   # e.g. शेतकर
-                stems.append(base + "री")  # e.g. शेतकरी
-            break
-
-    # If ra_normalized also has suffix
-    if ra_normalized != word:
-        for suffix in MARATHI_SUFFIXES:
-            if ra_normalized.endswith(suffix) and len(ra_normalized) - len(suffix) >= 2:
-                base = ra_normalized[:-len(suffix)]
-                stems.append(base)
-                if suffix.startswith("ऱ्या") or suffix.startswith("्या") or suffix.startswith("ऱ्या"):
-                    stems.append(base + "ी")
-                    stems.append(base + "री")
+    # 1. Oblique suffixes with root vowel restoration (-्यात, -्यावरून, -्याचा, -्याला)
+    oblique_patterns = [
+        ("्यांच्यासाठी", ["े", "ी", ""]),
+        ("्यांसाठी", ["े", "ी", ""]),
+        ("्यांच्या", ["े", "ी", ""]),
+        ("्यांचे", ["े", "ी", ""]),
+        ("्यांची", ["े", "ी", ""]),
+        ("्यांचा", ["े", "ी", ""]),
+        ("्यावरून", ["े", "ी", ""]),
+        ("्यांतून", ["े", "ी", ""]),
+        ("्यांमध्ये", ["े", "ी", ""]),
+        ("्यातील", ["े", "ी", ""]),
+        ("्यावर", ["े", "ी", ""]),
+        ("्यांनी", ["े", "ी", ""]),
+        ("्यांना", ["े", "ी", ""]),
+        ("्याला", ["े", "ी", ""]),
+        ("्याचा", ["े", "ी", ""]),
+        ("्याची", ["े", "ी", ""]),
+        ("्याचे", ["े", "ी", ""]),
+        ("्यात", ["े", "ी", ""]),
+        ("्या", ["े", "ी", ""]),
+    ]
+    for target in [word, ra_normalized]:
+        for suff, repls in oblique_patterns:
+            if target.endswith(suff) and len(target) - len(suff) >= 2:
+                base = target[:-len(suff)]
+                for r in repls:
+                    stems.append(base + r if r else base)
                 break
+
+    # 2. Eyelash-Ra oblique variants (शेतकऱ्यांना, शेतकऱ्यांनी, शेतकऱ्यांच्या)
+    eyelash_suffixes = [
+        "ऱ्यांच्यासाठी", "ऱ्यांसाठी", "ऱ्यांकडून", "ऱ्यांबद्दल",
+        "ऱ्यांच्या", "ऱ्यांचे", "ऱ्यांची", "ऱ्यांचा", "ऱ्यांतून",
+        "ऱ्यांमध्ये", "ऱ्यातील", "ऱ्यांवर", "ऱ्यांशी", "ऱ्यांनी",
+        "ऱ्यांना", "ऱ्याला", "ऱ्याने", "ऱ्या"
+    ]
+    for target in [word, ra_normalized]:
+        for suff in eyelash_suffixes:
+            for s in [suff, suff.replace("\u0931", "\u0930")]:
+                if target.endswith(s) and len(target) - len(s) >= 2:
+                    base = target[:-len(s)]
+                    stems.append(base + "री")
+                    stems.append(base + "र")
+                    break
+
+    # 3. Simple Vibhakti suffixes (-ात, -ेत, -ने, -नी, -चा, -ची, -चे, -ला, -ना, -त, -वरून)
+    simple_suffixes = [
+        "ांच्यासाठी", "ांसाठी", "ांकडून", "ांबद्दल", "ांच्या", "ांचे", "ांची", "ांचा",
+        "ावरून", "ातून", "ांमध्ये", "ातील", "ावर", "ांनी", "ींनी", "ांना", "ाला",
+        "ाचा", "ाची", "ाचे", "ात", "ाना", "ाने", "ाशी", "वरून", "तून", "हून"
+    ]
+    for target in [word, ra_normalized]:
+        for s in simple_suffixes:
+            if target.endswith(s) and len(target) - len(s) >= 2:
+                base = target[:-len(s)]
+                stems.append(base)
+                stems.append(base + "ा")
+                break
+
+    for target in [word, ra_normalized]:
+        for s in ["ेत", "ेचा", "ेची", "ेचे", "ेला"]:
+            if target.endswith(s) and len(target) - len(s) >= 2:
+                base = target[:-len(s)]
+                stems.append(base)
+                stems.append(base + "ा")
+                break
+
+    # 4. Maharashtra Cultural & Sovereign Entity Lemmas
+    if any(k in stems or k in word for k in ["शिवराय", "शिवराया", "शिवछत्रपती"]):
+        stems.extend(["शिवराय", "शिवाजी", "छत्रपती शिवाजी"])
 
     return list(dict.fromkeys(stems))
 
