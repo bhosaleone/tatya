@@ -11,6 +11,16 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
 
+# Satisfy Hugging Face ZeroGPU runtime check if enabled on space
+try:
+    import spaces
+    @spaces.GPU
+    def init_spaces_gpu():
+        return True
+    init_spaces_gpu()
+except Exception:
+    pass
+
 # Ensure database is uncompressed if only .gz is present
 db_file = BASE_DIR / "marathi_web.db"
 gz_file = BASE_DIR / "marathi_web.db.gz"
