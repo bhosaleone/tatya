@@ -369,6 +369,19 @@ def main() -> None:
     p_serve.add_argument("--db", default="marathi_web.db", help="SQLite database path")
     p_serve.add_argument("--viz", default="marathi_graph_view.html", help="Path to interactive graph HTML")
     def _cmd_serve(args: argparse.Namespace) -> int:
+        from pathlib import Path
+        import gzip
+        import shutil
+        db_path = Path(args.db)
+        gz_path = Path(str(args.db) + ".gz") if not str(args.db).endswith(".gz") else Path(args.db)
+        
+        # If DB doesn't exist or is an empty/stub file (< 1MB) and .gz exists, extract it!
+        if gz_path.exists() and (not db_path.exists() or db_path.stat().st_size < 1_000_000):
+            print(f"📦 Extracting {gz_path} -> {db_path} ({gz_path.stat().st_size / (1024*1024):.1f} MB)...")
+            with gzip.open(gz_path, "rb") as f_in, open(db_path, "wb") as f_out:
+                shutil.copyfileobj(f_in, f_out)
+            print(f"✅ Extracted database: {db_path.stat().st_size / (1024*1024):.1f} MB.")
+            
         from praman.crawler.db import CrawlerDB
         from praman.search.server import serve_search_portal
         db = CrawlerDB(args.db)

@@ -2,7 +2,7 @@ services:
   - type: web
     name: tatya
     runtime: python
-    buildCommand: "pip install -r requirements.txt"
+    buildCommand: "python3 -c \"import gzip, shutil, os; (shutil.copyfileobj(gzip.open('marathi_web.db.gz', 'rb'), open('marathi_web.db', 'wb')) if os.path.exists('marathi_web.db.gz') and (not os.path.exists('marathi_web.db') or os.path.getsize('marathi_web.db') < 1000000) else None)\" && pip install -r requirements.txt"
     startCommand: "python3 cli.py serve --port $PORT"
     envVars:
       - key: PORT
