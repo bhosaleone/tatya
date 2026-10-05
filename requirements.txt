@@ -1,0 +1,7 @@
+# Praman CLI core has zero required external dependencies (Python >= 3.10).
+#
+# Optional dependencies for SERP automation:
+# selenium>=4.15.0
+#
+# Optional test dependency:
+# pytest>=7.0.0

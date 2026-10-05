@@ -1,0 +1,318 @@
+"""Full-Text Search Indexer for the Marathi Web Database.
+
+Features:
+- SQLite FTS5 Virtual Table setup with BM25 scoring.
+- Marathi morphological suffix normalization (विभक्ती प्रत्यय).
+- Dual-script token indexing (Devanagari + transliteration skeletons).
+- High-speed batch indexing over 50,000+ pages.
+"""
+
+from __future__ import annotations
+import re
+import sqlite3
+import unicodedata
+from pathlib import Path
+from typing import Any, Optional
+
+from praman.crawler.db import CrawlerDB
+from praman.script import fold, topic_key, sibling_key
+
+
+# Extended Marathi inflectional suffixes and oblique cases (विभक्ती प्रत्यय, शब्दयोगी अव्यये व सामान्यरूप)
+MARATHI_SUFFIXES = [
+    # Complex suffixes
+    "्यांच्यासाठी", "ांच्यासाठी", "च्यासाठी", "साठी",
+    "्यांकडून", "ांकडून", "कडून",
+    "्यांबद्दल", "ांबद्दल", "बद्दल",
+    "्यांप्रमाणे", "ांप्रमाणे", "प्रमाणे",
+    "्यांच्या", "ांच्या", "च्या",
+    "्यांचे", "ांचे", "चे",
+    "्यांची", "ांची", "ची",
+    "्यांचा", "ांचा", "चा",
+    "्यांतून", "ातून", "तून",
+    "्यांमध्ये", "ांमध्ये", "मध्ये",
+    "्यातील", "ातील", "तील",
+    "्यावर", "ावर", "वर",
+    "्यांशी", "ांशी", "शी",
+    "्यांनी", "ांनी", "ने",
+    "्यांना", "ांना", "ना",
+    "्याला", "ाला", "ला",
+    # Eyelash-Ra oblique variants (ऱ U+0931 + ्या)
+    "ऱ्यांच्यासाठी", "ऱ्यांसाठी", "ऱ्यांकडून", "ऱ्यांबद्दल",
+    "ऱ्यांच्या", "ऱ्यांचे", "ऱ्यांची", "ऱ्यांचा", "ऱ्यांतून",
+    "ऱ्यांमध्ये", "ऱ्यातील", "ऱ्यांवर", "ऱ्यांशी", "ऱ्यांनी",
+    "ऱ्यांना", "ऱ्याला", "ऱ्याने", "ऱ्या",
+    # General oblique endings
+    "ातील", "ातून", "ावर", "ाशी", "ाना",
+]
+
+# Common Marathi compound words (सामासिक शब्द) that split into constituent search stems
+MARATHI_COMPOUNDS: dict[str, list[str]] = {
+    "कर्जमाफी": ["कर्ज", "माफी"],
+    "कर्जमुक्ती": ["कर्ज", "मुक्ती"],
+    "पीकविमा": ["पीक", "विमा"],
+    "अतिवृष्टी": ["अति", "वृष्टी"],
+    "बाजारभाव": ["बाजार", "भाव"],
+    "शेतजमीन": ["शेत", "जमीन"],
+    "महावितरण": ["महा", "वितरण"],
+    "निवडणूक": ["निवड", "णूक"],
+    "अर्थसंकल्प": ["अर्थ", "संकल्प"],
+    "जलसंपदा": ["जल", "संपदा"],
+    "ग्रामपंचायत": ["ग्राम", "पंचायत"],
+}
+
+# Cross-script / Bilingual Concept Mapping (METHODOLOGY.md §12 Cross-script identity)
+# Connects Devanagari concepts with standard English URL slugs and Latin transliterations
+BILINGUAL_CONCEPT_MAP: dict[str, list[str]] = {
+    # Agriculture & Farmers
+    "शेतकरी": ["farmer", "farmers", "shetkari", "kisan", "krishi", "agri"],
+    "farmer": ["शेतकरी", "shetkari", "kisan"],
+    "farmers": ["शेतकरी", "shetkari", "kisan"],
+    "shetkari": ["शेतकरी", "farmer", "farmers"],
+    "शेती": ["agriculture", "agri", "sheti", "farming"],
+    "agri": ["शेती", "कृषी", "sheti"],
+    "agriculture": ["शेती", "कृषी", "sheti"],
+    "कृषी": ["agriculture", "agri", "krishi"],
+
+    # Loans & Finance
+    "कर्ज": ["loan", "loans", "karj", "credit", "debt"],
+    "कर्जमाफी": ["farmer-loan-waiver", "loan-waiver", "karjamafi", "karj-mafi", "karjmukti"],
+    "loan": ["कर्ज", "karj", "finance"],
+    "loans": ["कर्ज", "karj"],
+    "karj": ["कर्ज", "loan"],
+    "credit": ["कर्ज", "पतपुरवठा", "credit"],
+    "माफी": ["waiver", "relief", "mafi", "mukti"],
+    "waiver": ["माफी", "कर्जमाफी", "मुक्ती"],
+
+    # Schemes & Government
+    "योजना": ["scheme", "yojana", "initiative"],
+    "yojana": ["योजना", "scheme"],
+    "scheme": ["योजना", "yojana"],
+    "अनुदान": ["subsidy", "anudan", "grant"],
+    "सरकार": ["govt", "government", "sarkar"],
+    "शासन": ["shasan", "govt", "government"],
+
+    # Crops & Weather
+    "पीक": ["crop", "crops", "pik"],
+    "विमा": ["insurance", "vima", "bima"],
+    "insurance": ["विमा", "vima"],
+    "हवामान": ["weather", "havaman", "forecast", "monsoon"],
+    "weather": ["हवामान", "havaman"],
+    "दुष्काळ": ["drought", "dushkal"],
+    "पाऊस": ["rain", "monsoon", "rainfall"],
+
+    # News, Media & Politics
+    "बातम्या": ["news", "batmya", "updates"],
+    "बातमी": ["news", "batmi"],
+    "news": ["बातम्या", "बातमी", "वृत्त"],
+    "निवडणूक": ["election", "nivadnuk", "poll"],
+    "अर्थसंकल्प": ["budget", "arthasankalp"],
+
+    # Business & Market
+    "बाजारभाव": ["mandi", "rates", "price", "bazarbhav"],
+    "भाव": ["rate", "price", "bhav"],
+    "शेअर": ["stock", "share", "market"],
+    "बँक": ["bank", "banking"],
+    "bank": ["बँक", "बँका"],
+}
+
+
+def normalize_marathi_word(token: str) -> list[str]:
+    """Normalizes a Marathi word by stripping suffixes, normalizing eyelash-Ra,
+
+    and generating root lemmas (e.g. शेतकऱ्यांना -> [शेतकरी, शेतकर, शेतक]).
+    """
+    word = fold(token).strip()
+    if len(word) <= 2:
+        return [word]
+
+    stems = [word]
+
+    # Normalize Eyelash-Ra (ऱ U+0931 -> र U+0930)
+    ra_normalized = word.replace("\u0931", "\u0930")
+    if ra_normalized != word:
+        stems.append(ra_normalized)
+
+    # Check for suffix stripping
+    matched_suffix = None
+    for suffix in MARATHI_SUFFIXES:
+        if word.endswith(suffix) and len(word) - len(suffix) >= 2:
+            base = word[:-len(suffix)]
+            stems.append(base)
+            matched_suffix = suffix
+            # For words ending in ऱ्या / ्या (oblique), restore canonical lemma
+            # e.g., शेतकऱ्या -> शेतकरी, शेतकर
+            if suffix.startswith("ऱ्या") or suffix.startswith("्या"):
+                stems.append(base + "ी")   # e.g. शेतकरी
+                stems.append(base + "र")   # e.g. शेतकर
+                stems.append(base + "री")  # e.g. शेतकरी
+            break
+
+    # If ra_normalized also has suffix
+    if ra_normalized != word:
+        for suffix in MARATHI_SUFFIXES:
+            if ra_normalized.endswith(suffix) and len(ra_normalized) - len(suffix) >= 2:
+                base = ra_normalized[:-len(suffix)]
+                stems.append(base)
+                if suffix.startswith("ऱ्या") or suffix.startswith("्या") or suffix.startswith("ऱ्या"):
+                    stems.append(base + "ी")
+                    stems.append(base + "री")
+                break
+
+    return list(dict.fromkeys(stems))
+
+
+def extract_search_tokens(text: str) -> str:
+    """Generates space-separated search tokens including:
+
+    - Raw words and folded stems
+    - Normalized morphology and oblique forms
+    - Compound word splits (कर्जमाफी -> कर्ज, माफी)
+    - Cross-script / Bilingual mapped tokens (METHODOLOGY.md §12)
+    - Topic consonant skeletons for Latin/Devanagari matching
+    """
+    clean = fold(text)
+    # Split by spaces, hyphens, slashes and punctuation
+    raw_words = re.findall(r"[\w\u0900-\u097f]+", clean)
+    tokens: set[str] = set()
+
+    for w in raw_words:
+        if len(w) < 2:
+            continue
+        tokens.add(w)
+
+        # 1. Morphological normalization
+        stems = normalize_marathi_word(w)
+        tokens.update(stems)
+
+        # 2. Compound word decomposition
+        if w in MARATHI_COMPOUNDS:
+            for part in MARATHI_COMPOUNDS[w]:
+                tokens.add(part)
+                tokens.update(normalize_marathi_word(part))
+        else:
+            # Check if any known compound is substring
+            for compound, parts in MARATHI_COMPOUNDS.items():
+                if compound in w:
+                    for part in parts:
+                        tokens.add(part)
+
+        # 3. Bilingual / Cross-script concept expansion
+        # Check direct match
+        for stem in stems + [w]:
+            if stem in BILINGUAL_CONCEPT_MAP:
+                tokens.update(BILINGUAL_CONCEPT_MAP[stem])
+
+        # 4. If word is Devanagari, also add its Latin topic skeleton
+        if any('\u0900' <= ch <= '\u097f' for ch in w):
+            t_key = topic_key(w)
+            if t_key and len(t_key) >= 2:
+                tokens.add(t_key)
+
+    return " ".join(tokens)
+
+
+class SearchIndexer:
+    """Builds and maintains the SQLite FTS5 search index."""
+
+    def __init__(self, db: CrawlerDB):
+        self.db = db
+
+    def ensure_fts_index(self) -> None:
+        """Creates the FTS5 virtual table and trigger if not already present."""
+        conn = self.db.get_connection()
+        cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pages_fts';")
+        if cur.fetchone() is not None:
+            return
+
+        conn.execute("BEGIN IMMEDIATE;")
+        try:
+            conn.execute("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
+                    title,
+                    url,
+                    domain,
+                    category,
+                    search_tokens,
+                    tokenize='unicode61 remove_diacritics 0'
+                );
+            """)
+            conn.execute("COMMIT;")
+        except Exception:
+            conn.execute("ROLLBACK;")
+            raise
+
+    def build_index(self, force_rebuild: bool = False) -> int:
+        """Populates or updates the FTS5 index from the pages and websites tables."""
+        conn = self.db.get_connection()
+        self.ensure_fts_index()
+
+        cur = conn.execute("SELECT COUNT(*) FROM pages_fts;")
+        indexed_count = cur.fetchone()[0]
+
+        if indexed_count > 0 and not force_rebuild:
+            return indexed_count
+
+        if force_rebuild:
+            conn.execute("BEGIN IMMEDIATE;")
+            conn.execute("DELETE FROM pages_fts;")
+            conn.execute("COMMIT;")
+
+        # Read pages joined with websites to get category and domain
+        cur = conn.execute("""
+            SELECT 
+                p.id as page_id,
+                p.url,
+                p.title,
+                p.path,
+                w.domain,
+                w.category
+            FROM pages p
+            JOIN websites w ON p.website_id = w.id
+            WHERE p.title IS NOT NULL OR p.path != '/'
+            ORDER BY p.id ASC;
+        """)
+        rows = cur.fetchall()
+        total_rows = len(rows)
+
+        batch_size = 2000
+        batch: list[tuple[int, str, str, str, str, str]] = []
+        indexed = 0
+
+        for r in rows:
+            p_id = r["page_id"]
+            title = r["title"] or ""
+            url = r["url"]
+            path = r["path"] or ""
+            dom = r["domain"]
+            cat = r["category"]
+
+            # Derive readable tokens from title, path, and domain
+            path_cleaned = re.sub(r"[-_/]+", " ", path)
+            combined_text = f"{title} {path_cleaned} {dom}"
+            search_toks = extract_search_tokens(combined_text)
+
+            batch.append((p_id, title, url, dom, cat, search_toks))
+
+            if len(batch) >= batch_size:
+                self._insert_fts_batch(conn, batch)
+                indexed += len(batch)
+                batch = []
+
+        if batch:
+            self._insert_fts_batch(conn, batch)
+            indexed += len(batch)
+
+        return indexed
+
+    def _insert_fts_batch(self, conn: sqlite3.Connection, batch: list[tuple[int, str, str, str, str, str]]) -> None:
+        conn.execute("BEGIN IMMEDIATE;")
+        try:
+            conn.executemany("""
+                INSERT INTO pages_fts (rowid, title, url, domain, category, search_tokens)
+                VALUES (?, ?, ?, ?, ?, ?);
+            """, batch)
+            conn.execute("COMMIT;")
+        except Exception:
+            conn.execute("ROLLBACK;")
+            raise

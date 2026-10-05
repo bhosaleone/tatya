@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>मराठी इंटरनेट ज्ञान आलेख (Marathi Web Knowledge Graph)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Yantramanav:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #090d16;
+            --bg-surface: #111827;
+            --bg-card: rgba(17, 24, 39, 0.85);
+            --border-dim: rgba(255, 255, 255, 0.08);
+            --border-accent: rgba(56, 189, 248, 0.3);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-cyan: #06b6d4;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Plus Jakarta Sans', 'Yantramanav', sans-serif;
+            background: var(--bg-base);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-dim);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .logo-badge {
+            background: linear-gradient(135deg, #06b6d4, #6366f1);
+            color: #fff;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+        }
+        .brand h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .brand p {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .hud-stats {
+            display: flex;
+            gap: 20px;
+        }
+        .stat-item {
+            text-align: right;
+        }
+        .stat-val {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+        }
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .main-layout {
+            flex: 1;
+            position: relative;
+            display: flex;
+        }
+        #graph-canvas {
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+            display: block;
+        }
+        #graph-canvas:active {
+            cursor: grabbing;
+        }
+        /* Left Control Panel */
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 320px;
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-dim);
+            border-radius: 12px;
+            padding: 16px;
+            z-index: 5;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .search-box input {
+            width: 100%;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--border-dim);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #fff;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .search-box input:focus {
+            border-color: var(--accent-cyan);
+        }
+        .category-filter {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+        .cat-chip {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.06);
+            color: var(--text-secondary);
+            cursor: pointer;
+            border: 1px solid transparent;
+            user-select: none;
+            transition: all 0.2s;
+        }
+        .cat-chip.active {
+            border-color: var(--border-accent);
+            color: #fff;
+            background: rgba(6, 182, 212, 0.2);
+        }
+        /* Node Details Drawer */
+        .drawer {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 360px;
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-dim);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 5;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            display: none;
+            flex-direction: column;
+            gap: 14px;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+        .drawer.open {
+            display: flex;
+        }
+        .drawer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 1px solid var(--border-dim);
+            padding-bottom: 12px;
+        }
+        .drawer-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .drawer-domain {
+            font-size: 12px;
+            color: var(--accent-cyan);
+            font-family: monospace;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 18px;
+        }
+        .close-btn:hover { color: #fff; }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .m-card {
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+        .m-val {
+            font-size: 15px;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+        .m-lbl {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        .pill-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: 8px;
+            padding: 10px 14px;
+            display: flex;
+            gap: 12px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            z-index: 4;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <span class="logo-badge">PRAMAN GRAPH</span>
+            <div>
+                <h1>मराठी इंटरनेट ज्ञान आलेख (Marathi Web Graph)</h1>
+                <p>Topological link structure, sitemap harvest, and authority flow</p>
+            </div>
+        </div>
+        <div class="hud-stats">
+            <div class="stat-item">
+                <div class="stat-val">63</div>
+                <div class="stat-label">वेबसाइट्स (Nodes)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val">25</div>
+                <div class="stat-label">दुवे संबंध (Edges)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val">49,675</div>
+                <div class="stat-label">अंतर्गत दुवे (Internal Links)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val">0.0064</div>
+                <div class="stat-label">घनता (Density)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val">80.0%</div>
+                <div class="stat-label">परस्परता (Reciprocity)</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <canvas id="graph-canvas"></canvas>
+
+        <div class="control-panel">
+            <div class="search-box">
+                <input type="text" id="node-search" placeholder="शोध (Search domain / title)...">
+            </div>
+            <div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase;">वर्गवारी फिल्टर (Categories)</div>
+                <div class="category-filter" id="cat-chips"></div>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+                💡 <b>टीप:</b> नोड्सचा आकार PageRank दर्शवतो. तपशील पाहण्यासाठी कोणत्याही वेबसाइट नोडवर क्लिक करा.
+            </div>
+        </div>
+
+        <div class="drawer" id="node-drawer">
+            <div class="drawer-header">
+                <div>
+                    <div class="drawer-title" id="d-title">Title</div>
+                    <div class="drawer-domain" id="d-domain">domain.com</div>
+                </div>
+                <button class="close-btn" id="d-close">&times;</button>
+            </div>
+            <div id="d-badge-container"></div>
+            <div class="metric-grid">
+                <div class="m-card">
+                    <div class="m-val" id="d-pr">0.000</div>
+                    <div class="m-lbl">PageRank</div>
+                </div>
+                <div class="m-card">
+                    <div class="m-val" id="d-auth">0.000</div>
+                    <div class="m-lbl">Authority Score (HITS)</div>
+                </div>
+                <div class="m-card">
+                    <div class="m-val" id="d-hub">0.000</div>
+                    <div class="m-lbl">Hub Score (HITS)</div>
+                </div>
+                <div class="m-card">
+                    <div class="m-val" id="d-mr-ratio">0%</div>
+                    <div class="m-lbl">मराठी मजकूर (Devanagari %)</div>
+                </div>
+                <div class="m-card">
+                    <div class="m-val" id="d-int-links">0</div>
+                    <div class="m-lbl">अंतर्गत दुवे (Internal Links)</div>
+                </div>
+                <div class="m-card">
+                    <div class="m-val" id="d-ext-links">0</div>
+                    <div class="m-lbl">बाह्य दुवे (External Citations)</div>
+                </div>
+            </div>
+            <div class="m-card">
+                <div class="m-lbl" style="margin-bottom: 4px;">साईटमॅप माहिती (Sitemap)</div>
+                <div style="font-size: 12px; color: #fff;" id="d-sitemap-status">Status: found</div>
+                <div style="font-size: 11px; color: var(--text-muted); word-break: break-all;" id="d-sitemap-url">-</div>
+                <div style="font-size: 12px; color: var(--accent-emerald); margin-top: 4px;" id="d-sitemap-count">0 URLs indexed</div>
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item"><span class="dot" style="background: #f59e0b;"></span> बातम्या (News)</div>
+            <div class="legend-item"><span class="dot" style="background: #10b981;"></span> अर्थ/वित्त (Finance)</div>
+            <div class="legend-item"><span class="dot" style="background: #84cc16;"></span> शेती (Agri)</div>
+            <div class="legend-item"><span class="dot" style="background: #06b6d4;"></span> ज्ञानकोश/विकि (Wiki)</div>
+            <div class="legend-item"><span class="dot" style="background: #6366f1;"></span> शासन (Govt)</div>
+            <div class="legend-item"><span class="dot" style="background: #3b82f6;"></span> ब्लॉग्स (Blogs)</div>
+        </div>
+    </div>
+
+    <script>
+        const graphData = {
+            nodes: [{"id": "maharashtratimes.com", "label": "Marathi News: मराठी बातम्या | Latest Marathi Breaking News & Headlines | Maharashtra Weather Updates | Maharashtra Politics |  Sports Updates In Marathi | Entertainment News In Marathi | Maharashtra Times", "domain": "maharashtratimes.com", "category": "News & Media", "color": "#f59e0b", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 2465, "external_links": 506, "sitemap_status": "found", "sitemap_url": "https://maharashtratimes.com/staticsitemap/mt/news/sitemap-48hours.xml", "sitemap_type": "urlset", "total_sitemap_urls": 219, "marathi_ratio": 0.5561, "language_verified": 1}, {"id": "loksatta.com", "label": "Marathi News| Marathi News Paper| Latest Marathi News, News Marathi| Latest News In Marathi| News In Marathi| Maharashtra Breaking News in Marathi| Marathi Newspaper| मराठी लेटेस्ट न्यूज| मराठी ब्रेकिंग न्यूज| ताज्या मराठी बातम्या| मराठी बातम्या| आजच्या मराठी बातम्या| महाराष्ट्र मुंबई न्यूज लाईव्ह at Loksatta", "domain": "loksatta.com", "category": "News & Media", "color": "#f59e0b", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 3169, "external_links": 817, "sitemap_status": "found", "sitemap_url": "https://www.loksatta.com/sitemap.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 1459, "marathi_ratio": 0.6464, "language_verified": 1}, {"id": "esakal.com", "label": "Marathi News | ताज्या बातम्या, Latest News in Marathi, Top Headlines, LIVE Updates, Marathi Breaking news | esakal", "domain": "esakal.com", "category": "News & Media", "color": "#f59e0b", "pagerank": 0.108881, "authority": 0.447214, "hub": 0.447214, "in_degree": 4, "out_degree": 4, "internal_links": 1241, "external_links": 425, "sitemap_status": "found", "sitemap_url": "https://www.esakal.com/news_sitemap.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 1298, "marathi_ratio": 0.5853, "language_verified": 1}, {"id": "agrowon.esakal.com", "label": "Agriculture News | Latest Agriculture News in Marathi | कृषीविषयक बातम्या | Agrowon", "domain": "agrowon.esakal.com", "category": "Agriculture", "color": "#84cc16", "pagerank": 0.06097, "authority": 0.447214, "hub": 0.447214, "in_degree": 4, "out_degree": 4, "internal_links": 467, "external_links": 249, "sitemap_status": "found", "sitemap_url": "https://agrowon.esakal.com/sitemap.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 245, "marathi_ratio": 0.4477, "language_verified": 1}, {"id": "paisamarg.com", "label": "PaisaMarg.com – PaisaMarg.com", "domain": "paisamarg.com", "category": "Finance & Career", "color": "#10b981", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 17, "external_links": 2, "sitemap_status": "found", "sitemap_url": "https://paisamarg.com/feed", "sitemap_type": "feed", "total_sitemap_urls": 1, "marathi_ratio": 0.6314, "language_verified": 1}, {"id": "lokmat.com", "label": "Marathi News | Live Marathi News | Latest News in Marathi | लोकमत मराठी बातम्या | Marathi News Paper | Breaking News in Marathi | Live Maharashtra, Mumbai & Pune Marathi News | मराठी बातम्या लाइव | आजच्या मराठी बातम्या | Lokmat.com", "domain": "lokmat.com", "category": "News & Media", "color": "#f59e0b", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 1619, "external_links": 316, "sitemap_status": "found", "sitemap_url": "https://www.lokmat.com/sitemap.xml", "sitemap_type": "urlset", "total_sitemap_urls": 2379, "marathi_ratio": 0.5675, "language_verified": 1}, {"id": "saamana.com", "label": "Saamana (सामना) | Latest Marathi News | Live Maharashtra, Mumbai, Pune, Nashik News | Marathi Newspaper | ताज्या मराठी बातम्या लाइव", "domain": "saamana.com", "category": "News & Media", "color": "#f59e0b", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 1776, "external_links": 393, "sitemap_status": "found", "sitemap_url": "https://www.saamana.com/sitemap.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 8000, "marathi_ratio": 0.7716, "language_verified": 1}, {"id": "tarunbharat.net", "label": "Tarun Bharat Nagpur", "domain": "tarunbharat.net", "category": "News & Media", "color": "#f59e0b", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 260, "external_links": 19, "sitemap_status": "found", "sitemap_url": "https://www.tarunbharat.net/sitemap.xml", "sitemap_type": "urlset", "total_sitemap_urls": 500, "marathi_ratio": 0.7515, "language_verified": 1}, {"id": "pudhari.news", "label": "Marathi Latest News |  मराठी बातम्या, Top Headlines Today, Online News, Breaking News on Pudhari", "domain": "pudhari.news", "category": "News & Media", "color": "#f59e0b", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 343, "external_links": 161, "sitemap_status": "found", "sitemap_url": "https://pudhari.news/sitemap.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 734, "marathi_ratio": 0.6917, "language_verified": 1}, {"id": "news18marathi.com", "label": "Marathi News: महाराष्ट्र ताज्या बातम्या, Latest Marathi Breaking News (मराठी लेटेस्ट न्यूज), ताज्या मराठी बातम्या - News18 Marathi (IBN Lokmat)", "domain": "news18marathi.com", "category": "News & Media", "color": "#f59e0b", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 1380, "external_links": 620, "sitemap_status": "found", "sitemap_url": "https://news18marathi.com/commonfeeds/v1/mar/sitemap-index.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 675, "marathi_ratio": 0.5962, "language_verified": 1}, {"id": "tv9marathi.com", "label": "Marathi News: ताज्या बातम्या, Latest Breaking News in Marathi Online, मराठीत Live Updates, महत्त्वाच्या बातम्या, आजच्या टॉप मराठी हेडलाईन्स | TV9 Marathi", "domain": "tv9marathi.com", "category": "News & Media", "color": "#f59e0b", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 1683, "external_links": 409, "sitemap_status": "found", "sitemap_url": "https://www.tv9marathi.com/news-sitemap.xml", "sitemap_type": "urlset", "total_sitemap_urls": 1486, "marathi_ratio": 0.6992, "language_verified": 1}, {"id": "dainikprabhat.com", "label": "Dainik Prabhat - Latest Marathi News । Breaking News । Top Marathi News । Marathi News | ताज्या बातम्या | मराठी बातम्या", "domain": "dainikprabhat.com", "category": "News & Media", "color": "#f59e0b", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 1208, "external_links": 152, "sitemap_status": "found", "sitemap_url": "https://www.dainikprabhat.com/sitemap_index.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 709, "marathi_ratio": 0.6449, "language_verified": 1}, {"id": "abpmajha.abplive.com", "label": "एबीपी माझा", "domain": "abpmajha.abplive.com", "category": "News & Media", "color": "#f59e0b", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": null, "language_verified": null}, {"id": "prahaar.in", "label": "Prahaar.in | Marathi News: Latest Marathi News, PrahaarNews Live, Marathi News Live – www.prahaar.in", "domain": "prahaar.in", "category": "News & Media", "color": "#f59e0b", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 1173, "external_links": 191, "sitemap_status": "found", "sitemap_url": "https://www.prahaar.in/sitemap_index.xml", "sitemap_type": "urlset", "total_sitemap_urls": 92, "marathi_ratio": 0.666, "language_verified": 1}, {"id": "deshdoot.com", "label": "Home - Deshdoot", "domain": "deshdoot.com", "category": "News & Media", "color": "#f59e0b", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 607, "external_links": 109, "sitemap_status": "found", "sitemap_url": "https://deshdoot.com/sitemap_index.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 800, "marathi_ratio": 0.6384, "language_verified": 1}, {"id": "navarashtra.com", "label": "Marathi News: ताज्या बातम्या, Latest News in Marathi Online, मराठीत Live Updates, महत्त्वाच्या बातम्या, आजच्या टॉप मराठी हेडलाईन्स | Navarashtra", "domain": "navarashtra.com", "category": "News & Media", "color": "#f59e0b", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 1401, "external_links": 171, "sitemap_status": "found", "sitemap_url": "https://www.navarashtra.com/news-sitemap.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 486, "marathi_ratio": 0.642, "language_verified": 1}, {"id": "maharevenue.com", "label": "महा रेव्हेन्यू", "domain": "maharevenue.com", "category": "Finance & Career", "color": "#10b981", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": null, "language_verified": null}, {"id": "marathispeed.com", "label": "मराठी स्पीड", "domain": "marathispeed.com", "category": "Finance & Career", "color": "#10b981", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": null, "language_verified": null}, {"id": "nokri.today", "label": "नोकरी टुडे", "domain": "nokri.today", "category": "Finance & Career", "color": "#10b981", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": null, "language_verified": null}, {"id": "majhimanpasand.com", "label": "माझी मनपसंत", "domain": "majhimanpasand.com", "category": "Finance & Career", "color": "#10b981", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": null, "language_verified": null}, {"id": "marathibharati.in", "label": "मराठी भरती", "domain": "marathibharati.in", "category": "Finance & Career", "color": "#10b981", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": null, "language_verified": null}, {"id": "shetimitra.in", "label": "Home - shetimitra", "domain": "shetimitra.in", "category": "Agriculture", "color": "#84cc16", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 276, "external_links": 15, "sitemap_status": "found", "sitemap_url": "https://www.shetimitra.in/sitemap_index.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 16, "marathi_ratio": 0.3702, "language_verified": 1}, {"id": "arthasakshar.com", "label": "Arthasakshar - | सुखस्य मूलं अर्थ: |", "domain": "arthasakshar.com", "category": "Finance & Career", "color": "#10b981", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 2694, "external_links": 170, "sitemap_status": "found", "sitemap_url": "https://arthasakshar.com/sitemap.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 1979, "marathi_ratio": 0.5387, "language_verified": 1}, {"id": "baliraja.com", "label": "बळीराजावरील ताजे लेखन | बळीराजा डॉट कॉम", "domain": "baliraja.com", "category": "Agriculture", "color": "#84cc16", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 297, "external_links": 8, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": 0.6426, "language_verified": 1}, {"id": "krushiking.com", "label": "कृषीकिंग", "domain": "krushiking.com", "category": "Agriculture", "color": "#84cc16", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": null, "language_verified": null}, {"id": "digitalmaharashtra.in", "label": "डिजिटल महाराष्ट्र", "domain": "digitalmaharashtra.in", "category": "Agriculture", "color": "#84cc16", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": null, "language_verified": null}, {"id": "mr.wikipedia.org", "label": "विकिपीडिया", "domain": "mr.wikipedia.org", "category": "Knowledge & Wiki", "color": "#06b6d4", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 383, "external_links": 393, "sitemap_status": "found", "sitemap_url": "https://mr.wikipedia.org/w/rest.php/site/v1/sitemap/0", "sitemap_type": "standard", "total_sitemap_urls": 0, "marathi_ratio": 0.6986, "language_verified": 1}, {"id": "marathivishwakosh.org", "label": "भाषा संचालनालय, महाराष्ट्र राज्य", "domain": "marathivishwakosh.org", "category": "Knowledge & Wiki", "color": "#06b6d4", "pagerank": 0.010702, "authority": 0.0, "hub": 2e-06, "in_degree": 0, "out_degree": 3, "internal_links": 3, "external_links": 80, "sitemap_status": "found", "sitemap_url": "https://directorate-marathi.maharashtra.gov.in/sitemap.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 1, "marathi_ratio": 0.6122, "language_verified": 1}, {"id": "maayboli.com", "label": "Maayboli | Marathi footsteps around the world मायबोलीशी नातं सांगणार्‍या जगभरच्या पाऊलखुणा", "domain": "maayboli.com", "category": "Community & Literature", "color": "#a855f7", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 664, "external_links": 16, "sitemap_status": "found", "sitemap_url": "https://www.maayboli.com/sitemap.xml", "sitemap_type": "urlset", "total_sitemap_urls": 7224, "marathi_ratio": 0.6231, "language_verified": 1}, {"id": "misalpav.com", "label": "मुख्य पान | मिसळपाव", "domain": "misalpav.com", "category": "Community & Literature", "color": "#a855f7", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 50, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": 0.7181, "language_verified": 1}, {"id": "aisiakshare.com", "label": "नवीन लेखन | ऐसीअक्षरे", "domain": "aisiakshare.com", "category": "Community & Literature", "color": "#a855f7", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 65, "external_links": 4, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": 0.6284, "language_verified": 1}, {"id": "bolmarathi.com", "label": "बोल मराठी", "domain": "bolmarathi.com", "category": "Community & Literature", "color": "#a855f7", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": null, "language_verified": null}, {"id": "sahityachintan.com", "label": "साहित्य चिंतन", "domain": "sahityachintan.com", "category": "Community & Literature", "color": "#a855f7", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "found", "sitemap_url": "https://sahityachintan.com/sitemap.xml", "sitemap_type": "urlset", "total_sitemap_urls": 1, "marathi_ratio": null, "language_verified": null}, {"id": "marathimati.com", "label": "मराठीमाती । माझ्या मातीचे गायन", "domain": "marathimati.com", "category": "Community & Literature", "color": "#a855f7", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 17737, "external_links": 316, "sitemap_status": "found", "sitemap_url": "https://www.marathimati.com/sitemap.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 3200, "marathi_ratio": 0.7991, "language_verified": 1}, {"id": "maharashtra.gov.in", "label": "महाराष्ट्र शासन", "domain": "maharashtra.gov.in", "category": "Government", "color": "#6366f1", "pagerank": 0.01123, "authority": 2e-06, "hub": 0.0, "in_degree": 2, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": null, "language_verified": null}, {"id": "aplesarkar.mahaonline.gov.in", "label": "आपले सरकार", "domain": "aplesarkar.mahaonline.gov.in", "category": "Government", "color": "#6366f1", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": null, "language_verified": null}, {"id": "mahabhulekh.maharashtra.gov.in", "label": "महाभूमी (महाभूलेख)", "domain": "mahabhulekh.maharashtra.gov.in", "category": "Government", "color": "#6366f1", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": null, "language_verified": null}, {"id": "mahadbt.maharashtra.gov.in", "label": "महाडीबीटी", "domain": "mahadbt.maharashtra.gov.in", "category": "Government", "color": "#6366f1", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": null, "language_verified": null}, {"id": "mpsc.gov.in", "label": "MPSC", "domain": "mpsc.gov.in", "category": "Government", "color": "#6366f1", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": 0.0, "language_verified": 0}, {"id": "madhurasrecipe.com", "label": "Browse Your Favorite Recipe From Madhura | Madhura's Recipe", "domain": "madhurasrecipe.com", "category": "Lifestyle & Cooking", "color": "#ec4899", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 1641, "external_links": 339, "sitemap_status": "found", "sitemap_url": "https://madhurasrecipe.com/sitemap_index.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 1421, "marathi_ratio": 0.0, "language_verified": 0}, {"id": "ruchkarmejwani.com", "label": "रुचकर मेजवानी", "domain": "ruchkarmejwani.com", "category": "Lifestyle & Cooking", "color": "#ec4899", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "found", "sitemap_url": "https://ruchkarmejwani.com/sitemap.xml", "sitemap_type": "urlset", "total_sitemap_urls": 1, "marathi_ratio": null, "language_verified": null}, {"id": "marathiblogs.in", "label": "MarathiBlogs", "domain": "marathiblogs.in", "category": "Blogs & Technology", "color": "#3b82f6", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 1388, "external_links": 243, "sitemap_status": "found", "sitemap_url": "https://marathiblogs.in/sitemap.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 791, "marathi_ratio": 0.2863, "language_verified": 0}, {"id": "techmarathi.in", "label": "टेक मराठी", "domain": "techmarathi.in", "category": "Blogs & Technology", "color": "#3b82f6", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "found", "sitemap_url": "https://techmarathi.in/sitemap.xml", "sitemap_type": "urlset", "total_sitemap_urls": 1, "marathi_ratio": null, "language_verified": null}, {"id": "arogyamitr.com", "label": "आरोग्यमित्र", "domain": "arogyamitr.com", "category": "Health & Lifestyle", "color": "#94a3b8", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": null, "language_verified": null}, {"id": "marathigaurav.in", "label": "मराठी गौरव", "domain": "marathigaurav.in", "category": "Culture & History", "color": "#f97316", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "found", "sitemap_url": "https://marathigaurav.in/sitemap.xml", "sitemap_type": "urlset", "total_sitemap_urls": 1, "marathi_ratio": null, "language_verified": null}, {"id": "swami.in", "label": "स्वामी", "domain": "swami.in", "category": "Culture & History", "color": "#f97316", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": null, "language_verified": null}, {"id": "infomarathi.in", "label": "इन्फो मराठी", "domain": "infomarathi.in", "category": "Blogs & Technology", "color": "#3b82f6", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": null, "language_verified": null}, {"id": "saamtv.esakal.com", "label": "Marathi news, मराठी बातम्या, Latest News in Marathi, ठळक बातम्या, Today Breaking Live News, Top Headlines in Marathi,  Tajya Batmya | Saam Tv", "domain": "saamtv.esakal.com", "category": "News & Media", "color": "#f59e0b", "pagerank": 0.065569, "authority": 0.447214, "hub": 0.447214, "in_degree": 4, "out_degree": 4, "internal_links": 281, "external_links": 130, "sitemap_status": "found", "sitemap_url": "https://saamtv.esakal.com/sitemap.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 351, "marathi_ratio": 0.5861, "language_verified": 1}, {"id": "sarkarnama.esakal.com", "label": "Politics News | Latest Political News in Marathi, राजकारण बातम्या, Maharashtra Political Breaking News | Sarkarnama", "domain": "sarkarnama.esakal.com", "category": "News & Media", "color": "#f59e0b", "pagerank": 0.060561, "authority": 0.447214, "hub": 0.447214, "in_degree": 4, "out_degree": 4, "internal_links": 426, "external_links": 255, "sitemap_status": "found", "sitemap_url": "https://sarkarnama.esakal.com/sitemap.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 257, "marathi_ratio": 0.6063, "language_verified": 1}, {"id": "dainikgomantak.esakal.com", "label": "Goa News in Marathi | Kokan News | Goa Breaking Batmya and Headlines | Dainik Gomantak", "domain": "dainikgomantak.esakal.com", "category": "News & Media", "color": "#f59e0b", "pagerank": 0.060744, "authority": 0.447214, "hub": 0.447214, "in_degree": 4, "out_degree": 4, "internal_links": 302, "external_links": 167, "sitemap_status": "found", "sitemap_url": "https://dainikgomantak.esakal.com/sitemap.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 144, "marathi_ratio": 0.623, "language_verified": 1}, {"id": "shabdakosh-marathi.maharashtra.gov.in", "label": "शासन व्यवहारासाठी शब्दकोश आणि शास्त्रीय व तांत्रिक परिभाषा कोश | मराठी शब्दकोश", "domain": "shabdakosh-marathi.maharashtra.gov.in", "category": "Government", "color": "#6366f1", "pagerank": 0.027595, "authority": 2e-06, "hub": 0.0, "in_degree": 2, "out_degree": 0, "internal_links": 40, "external_links": 3, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": 0.715, "language_verified": 1}, {"id": "directorate-marathi.maharashtra.gov.in", "label": "भाषा संचालनालय, महाराष्ट्र राज्य", "domain": "directorate-marathi.maharashtra.gov.in", "category": "Government", "color": "#6366f1", "pagerank": 0.015849, "authority": 1e-06, "hub": 1e-06, "in_degree": 1, "out_degree": 2, "internal_links": 45, "external_links": 37, "sitemap_status": "found", "sitemap_url": "https://directorate-marathi.maharashtra.gov.in/sitemap.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 1, "marathi_ratio": 0.6122, "language_verified": 1}, {"id": "bolbhidu.com", "label": "Bol Bhidu | Latest Marathi News", "domain": "bolbhidu.com", "category": "Culture & History", "color": "#f97316", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 315, "external_links": 86, "sitemap_status": "found", "sitemap_url": "https://bolbhidu.com/sitemap_index.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 800, "marathi_ratio": 0.7189, "language_verified": 1}, {"id": "aksharnama.com", "label": "अक्षरनामा : Home", "domain": "aksharnama.com", "category": "Community & Literature", "color": "#a855f7", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 107, "external_links": 7, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": 0.7574, "language_verified": 1}, {"id": "evivek.com", "label": "विवेक मराठी", "domain": "evivek.com", "category": "Culture & History", "color": "#f97316", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 148, "external_links": 16, "sitemap_status": "found", "sitemap_url": "https://www.evivek.com/sitemap.xml", "sitemap_type": "urlset", "total_sitemap_urls": 500, "marathi_ratio": 0.8104, "language_verified": 1}, {"id": "thinkmaharashtra.com", "label": "थिंक महाराष्ट्र", "domain": "thinkmaharashtra.com", "category": "Culture & History", "color": "#f97316", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": null, "language_verified": null}, {"id": "esahityapratishthan.com", "label": "ई-साहित्य प्रतिष्ठान", "domain": "esahityapratishthan.com", "category": "Community & Literature", "color": "#a855f7", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": null, "language_verified": null}, {"id": "marathisrushti.com", "label": "Marathisrushti", "domain": "marathisrushti.com", "category": "Community & Literature", "color": "#a855f7", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 360, "external_links": 76, "sitemap_status": "found", "sitemap_url": "https://www.marathisrushti.com/sitemap.xml", "sitemap_type": "urlset", "total_sitemap_urls": 75, "marathi_ratio": 0.5686, "language_verified": 1}, {"id": "govnokri.in", "label": "GovNokri NMK 2026 - सर्वात तत्पर जॉब अपडेट्स....!", "domain": "govnokri.in", "category": "Finance & Career", "color": "#10b981", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 885, "external_links": 121, "sitemap_status": "found", "sitemap_url": "https://www.govnokri.in/wp-sitemap.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 2001, "marathi_ratio": 0.2735, "language_verified": 0}, {"id": "mahasarkar.co.in", "label": "Mahasarkar — Latest Maharashtra Government Job Alerts & Sarkari Naukri", "domain": "mahasarkar.co.in", "category": "Finance & Career", "color": "#10b981", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 1107, "external_links": 0, "sitemap_status": "found", "sitemap_url": "https://mahasarkar.co.in/sitemap.xml", "sitemap_type": "urlset", "total_sitemap_urls": 12259, "marathi_ratio": 0.1918, "language_verified": 0}, {"id": "mpscmaterial.com", "label": "MPSC Material", "domain": "mpscmaterial.com", "category": "Finance & Career", "color": "#10b981", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 648, "external_links": 15, "sitemap_status": "found", "sitemap_url": "https://mpscmaterial.com/wp-sitemap.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 812, "marathi_ratio": 0.1707, "language_verified": 0}, {"id": "kalnirnay.com", "label": "Kalnirnay | India's Premier Almanac Maker | Buy Calmanac Online", "domain": "kalnirnay.com", "category": "Lifestyle & Cooking", "color": "#ec4899", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 1004, "external_links": 69, "sitemap_status": "found", "sitemap_url": "https://www.kalnirnay.com/sitemaps.xml", "sitemap_type": "sitemapindex", "total_sitemap_urls": 1390, "marathi_ratio": 0.2654, "language_verified": 0}, {"id": "krushirang.com", "label": "कृषी रंग", "domain": "krushirang.com", "category": "Agriculture", "color": "#84cc16", "pagerank": 0.010702, "authority": 0.0, "hub": 0.0, "in_degree": 0, "out_degree": 0, "internal_links": 0, "external_links": 0, "sitemap_status": "absent", "sitemap_url": null, "sitemap_type": "none", "total_sitemap_urls": 0, "marathi_ratio": 0.0, "language_verified": 0}],
+            edges: [{"source": "agrowon.esakal.com", "target": "agrowonepaper.esakal.com", "weight": 17}, {"source": "agrowon.esakal.com", "target": "api.whatsapp.com", "weight": 16}, {"source": "agrowon.esakal.com", "target": "dainikgomantak.esakal.com", "weight": 17}, {"source": "agrowon.esakal.com", "target": "esakal.com", "weight": 34}, {"source": "agrowon.esakal.com", "target": "facebook.com", "weight": 16}, {"source": "agrowon.esakal.com", "target": "gomantaktimes.com", "weight": 17}, {"source": "agrowon.esakal.com", "target": "linkedin.com", "weight": 16}, {"source": "agrowon.esakal.com", "target": "quintype.com", "weight": 17}, {"source": "agrowon.esakal.com", "target": "saamtv.esakal.com", "weight": 17}, {"source": "agrowon.esakal.com", "target": "sakalmediagroup.com", "weight": 17}, {"source": "agrowon.esakal.com", "target": "sarkarnama.esakal.com", "weight": 17}, {"source": "agrowon.esakal.com", "target": "thebridgechronicle.com", "weight": 17}, {"source": "agrowon.esakal.com", "target": "twitter.com", "weight": 31}, {"source": "aisiakshare.com", "target": "aisiakshare.substack.com", "weight": 1}, {"source": "aisiakshare.com", "target": "facebook.com", "weight": 1}, {"source": "aisiakshare.com", "target": "instagram.com", "weight": 1}, {"source": "aisiakshare.com", "target": "x.com", "weight": 1}, {"source": "aksharnama.com", "target": "booksnama.com", "weight": 1}, {"source": "aksharnama.com", "target": "exobytes.co", "weight": 1}, {"source": "aksharnama.com", "target": "facebook.com", "weight": 1}, {"source": "aksharnama.com", "target": "instamojo.com", "weight": 1}, {"source": "aksharnama.com", "target": "play.google.com", "weight": 1}, {"source": "aksharnama.com", "target": "twitter.com", "weight": 1}, {"source": "aksharnama.com", "target": "youtube.com", "weight": 1}, {"source": "arthasakshar.com", "target": "amzn.to", "weight": 38}, {"source": "arthasakshar.com", "target": "api.follow.it", "weight": 18}, {"source": "arthasakshar.com", "target": "arthasakshar.amshoft.co.in", "weight": 1}, {"source": "arthasakshar.com", "target": "business-standard.com", "weight": 1}, {"source": "arthasakshar.com", "target": "facebook.com", "weight": 36}, {"source": "arthasakshar.com", "target": "jamesclear.com", "weight": 1}, {"source": "arthasakshar.com", "target": "mofapp.nic.in", "weight": 1}, {"source": "arthasakshar.com", "target": "pinterest.com", "weight": 18}, {"source": "arthasakshar.com", "target": "rbi.org.in", "weight": 1}, {"source": "arthasakshar.com", "target": "whatsapp.com", "weight": 19}, {"source": "arthasakshar.com", "target": "x.com", "weight": 36}, {"source": "baliraja.com", "target": "facebook.com", "weight": 2}, {"source": "baliraja.com", "target": "hitwebcounter.com", "weight": 1}, {"source": "baliraja.com", "target": "sharadjoshi.in", "weight": 1}, {"source": "baliraja.com", "target": "shetkari.in", "weight": 1}, {"source": "baliraja.com", "target": "twitter.com", "weight": 1}, {"source": "baliraja.com", "target": "youtube.com", "weight": 1}, {"source": "baliraja.com", "target": "yugatma.sharadjoshi.in", "weight": 1}, {"source": "bolbhidu.com", "target": "facebook.com", "weight": 19}, {"source": "bolbhidu.com", "target": "imprintweb.in", "weight": 10}, {"source": "bolbhidu.com", "target": "instagram.com", "weight": 10}, {"source": "bolbhidu.com", "target": "pinterest.com", "weight": 9}, {"source": "bolbhidu.com", "target": "telegram.me", "weight": 9}, {"source": "bolbhidu.com", "target": "twitter.com", "weight": 19}, {"source": "bolbhidu.com", "target": "youtube.com", "weight": 10}, {"source": "dainikgomantak.esakal.com", "target": "agrowon.esakal.com", "weight": 8}, {"source": "dainikgomantak.esakal.com", "target": "api.whatsapp.com", "weight": 7}, {"source": "dainikgomantak.esakal.com", "target": "apps.apple.com", "weight": 7}, {"source": "dainikgomantak.esakal.com", "target": "dainikgomantak.com", "weight": 14}, {"source": "dainikgomantak.esakal.com", "target": "dainikgomantakepaper.esakal.com", "weight": 15}, {"source": "dainikgomantak.esakal.com", "target": "esakal.com", "weight": 15}, {"source": "dainikgomantak.esakal.com", "target": "facebook.com", "weight": 7}, {"source": "dainikgomantak.esakal.com", "target": "gomantaktimes.com", "weight": 8}, {"source": "dainikgomantak.esakal.com", "target": "linkedin.com", "weight": 7}, {"source": "dainikgomantak.esakal.com", "target": "play.google.com", "weight": 7}, {"source": "dainikgomantak.esakal.com", "target": "quintype.com", "weight": 8}, {"source": "dainikgomantak.esakal.com", "target": "saamtv.esakal.com", "weight": 8}, {"source": "dainikgomantak.esakal.com", "target": "sakalmediagroup.com", "weight": 8}, {"source": "dainikgomantak.esakal.com", "target": "sarkarnama.esakal.com", "weight": 8}, {"source": "dainikgomantak.esakal.com", "target": "socialforaction.com", "weight": 8}, {"source": "dainikgomantak.esakal.com", "target": "tanishkafoundation.org", "weight": 8}, {"source": "dainikgomantak.esakal.com", "target": "thebridgechronicle.com", "weight": 8}, {"source": "dainikgomantak.esakal.com", "target": "twitter.com", "weight": 7}, {"source": "dainikgomantak.esakal.com", "target": "x.com", "weight": 1}, {"source": "dainikgomantak.esakal.com", "target": "yinforchange.in", "weight": 8}, {"source": "dainikprabhat.com", "target": "aarogyajagar.com", "weight": 19}, {"source": "dainikprabhat.com", "target": "axrmzc5ulsbu.compat.objectstorage.ap-hyderabad-1.oraclecloud.com", "weight": 6}, {"source": "dainikprabhat.com", "target": "dailyprabhat.com", "weight": 19}, {"source": "dainikprabhat.com", "target": "epaper.dainikprabhat.com", "weight": 19}, {"source": "dainikprabhat.com", "target": "facebook.com", "weight": 19}, {"source": "dainikprabhat.com", "target": "instagram.com", "weight": 19}, {"source": "dainikprabhat.com", "target": "t.co", "weight": 3}, {"source": "dainikprabhat.com", "target": "x.com", "weight": 29}, {"source": "dainikprabhat.com", "target": "youtube.com", "weight": 19}, {"source": "deshdoot.com", "target": "api.whatsapp.com", "weight": 18}, {"source": "deshdoot.com", "target": "digitaldeshdoot.wpcomstaging.com", "weight": 18}, {"source": "deshdoot.com", "target": "epaper.deshdoot.com", "weight": 19}, {"source": "deshdoot.com", "target": "facebook.com", "weight": 18}, {"source": "deshdoot.com", "target": "telegram.me", "weight": 18}, {"source": "deshdoot.com", "target": "twitter.com", "weight": 18}, {"source": "directorate-marathi.maharashtra.gov.in", "target": "india.gov.in", "weight": 1}, {"source": "directorate-marathi.maharashtra.gov.in", "target": "mahait.org", "weight": 1}, {"source": "directorate-marathi.maharashtra.gov.in", "target": "maharashtra.gov.in", "weight": 1}, {"source": "directorate-marathi.maharashtra.gov.in", "target": "marathi.maharashtra.gov.in", "weight": 1}, {"source": "directorate-marathi.maharashtra.gov.in", "target": "shabdakosh-marathi.maharashtra.gov.in", "weight": 32}, {"source": "directorate-marathi.maharashtra.gov.in", "target": "wponetap.com", "weight": 1}, {"source": "esakal.com", "target": "agrowon.esakal.com", "weight": 19}, {"source": "esakal.com", "target": "api.whatsapp.com", "weight": 18}, {"source": "esakal.com", "target": "apps.apple.com", "weight": 12}, {"source": "esakal.com", "target": "dainikgomantak.esakal.com", "weight": 19}, {"source": "esakal.com", "target": "epaper.esakal.com", "weight": 19}, {"source": "esakal.com", "target": "facebook.com", "weight": 18}, {"source": "esakal.com", "target": "games.esakal.com", "weight": 20}, {"source": "esakal.com", "target": "gomantaktimes.com", "weight": 19}, {"source": "esakal.com", "target": "linkedin.com", "weight": 18}, {"source": "esakal.com", "target": "online.fliphtml5.com", "weight": 19}, {"source": "esakal.com", "target": "play.google.com", "weight": 12}, {"source": "esakal.com", "target": "quintype.com", "weight": 19}, {"source": "esakal.com", "target": "saamtv.esakal.com", "weight": 19}, {"source": "esakal.com", "target": "sakalmediagroup.com", "weight": 38}, {"source": "esakal.com", "target": "sakalpublications.com", "weight": 19}, {"source": "esakal.com", "target": "sakalsocialfoundation.com", "weight": 19}, {"source": "esakal.com", "target": "sarkarnama.esakal.com", "weight": 19}, {"source": "esakal.com", "target": "socialforaction.com", "weight": 19}, {"source": "esakal.com", "target": "studyroomepaper.esakal.com", "weight": 19}, {"source": "esakal.com", "target": "tanishkafoundation.org", "weight": 19}, {"source": "esakal.com", "target": "thebridgechronicle.com", "weight": 19}, {"source": "esakal.com", "target": "twitter.com", "weight": 19}, {"source": "esakal.com", "target": "x.com", "weight": 4}, {"source": "evivek.com", "target": "epaper.evivek.com", "weight": 1}, {"source": "evivek.com", "target": "facebook.com", "weight": 3}, {"source": "evivek.com", "target": "hindivivek.org", "weight": 1}, {"source": "evivek.com", "target": "instagram.com", "weight": 2}, {"source": "evivek.com", "target": "manthan.evivek.com", "weight": 1}, {"source": "evivek.com", "target": "sangraha.net", "weight": 1}, {"source": "evivek.com", "target": "shikshanvivek.com", "weight": 1}, {"source": "evivek.com", "target": "subscriptionnew.evivek.com", "weight": 1}, {"source": "evivek.com", "target": "twitter.com", "weight": 2}, {"source": "evivek.com", "target": "youtube.com", "weight": 2}, {"source": "evivek.com", "target": "yuvavivek.com", "weight": 1}, {"source": "govnokri.in", "target": "apprenticeshipindia.gov.in", "weight": 2}, {"source": "govnokri.in", "target": "centralcoalfields.in", "weight": 1}, {"source": "govnokri.in", "target": "drdo.gov.in", "weight": 1}, {"source": "govnokri.in", "target": "drive.google.com", "weight": 5}, {"source": "govnokri.in", "target": "facebook.com", "weight": 8}, {"source": "govnokri.in", "target": "ibm.gov.in", "weight": 6}, {"source": "govnokri.in", "target": "it.maharashtra.gov.in", "weight": 1}, {"source": "govnokri.in", "target": "mahabharti.in", "weight": 48}, {"source": "govnokri.in", "target": "mhrdnats.gov.in", "weight": 1}, {"source": "govnokri.in", "target": "narcoticsindia.nic.in", "weight": 1}, {"source": "govnokri.in", "target": "play.google.com", "weight": 10}, {"source": "govnokri.in", "target": "rfd.maharashtra.gov.in", "weight": 1}, {"source": "govnokri.in", "target": "t.co", "weight": 10}, {"source": "govnokri.in", "target": "telegram.me", "weight": 18}, {"source": "govnokri.in", "target": "twitter.com", "weight": 8}, {"source": "kalnirnay.com", "target": "akismet.com", "weight": 8}, {"source": "kalnirnay.com", "target": "facebook.com", "weight": 10}, {"source": "kalnirnay.com", "target": "instagram.com", "weight": 10}, {"source": "kalnirnay.com", "target": "ixyr.media", "weight": 10}, {"source": "kalnirnay.com", "target": "rebrand.ly", "weight": 1}, {"source": "kalnirnay.com", "target": "twitter.com", "weight": 10}, {"source": "kalnirnay.com", "target": "wa.me", "weight": 10}, {"source": "kalnirnay.com", "target": "youtube.com", "weight": 10}, {"source": "lokmat.com", "target": "astro.lokmat.com", "weight": 13}, {"source": "lokmat.com", "target": "deepotsav.lokmat.com", "weight": 19}, {"source": "lokmat.com", "target": "epaper.lokmat.com", "weight": 29}, {"source": "lokmat.com", "target": "epaperlokmat.in", "weight": 13}, {"source": "lokmat.com", "target": "facebook.com", "weight": 21}, {"source": "lokmat.com", "target": "google.com", "weight": 18}, {"source": "lokmat.com", "target": "instagram.com", "weight": 22}, {"source": "lokmat.com", "target": "lokmat.net", "weight": 32}, {"source": "lokmat.com", "target": "lokmatnews.in", "weight": 19}, {"source": "lokmat.com", "target": "lokmatsakhi.com", "weight": 1}, {"source": "lokmat.com", "target": "lokmattimes.com", "weight": 19}, {"source": "lokmat.com", "target": "m.youtube.com", "weight": 3}, {"source": "lokmat.com", "target": "news.google.com", "weight": 17}, {"source": "lokmat.com", "target": "profile.google.com", "weight": 18}, {"source": "lokmat.com", "target": "t.me", "weight": 15}, {"source": "lokmat.com", "target": "twitter.com", "weight": 18}, {"source": "lokmat.com", "target": "whatsapp.com", "weight": 19}, {"source": "lokmat.com", "target": "x.com", "weight": 5}, {"source": "lokmat.com", "target": "youtube.com", "weight": 15}, {"source": "loksatta.com", "target": "api.whatsapp.com", "weight": 22}, {"source": "loksatta.com", "target": "bengali.indianexpress.com", "weight": 23}, {"source": "loksatta.com", "target": "digileads.bankofmaharashtra.bank.in", "weight": 23}, {"source": "loksatta.com", "target": "epaper.loksatta.com", "weight": 46}, {"source": "loksatta.com", "target": "expressgroup.indianexpress.com", "weight": 46}, {"source": "loksatta.com", "target": "facebook.com", "weight": 45}, {"source": "loksatta.com", "target": "financialexpress.com", "weight": 23}, {"source": "loksatta.com", "target": "gujarati.indianexpress.com", "weight": 23}, {"source": "loksatta.com", "target": "hindi.indianexpress.com", "weight": 23}, {"source": "loksatta.com", "target": "iciciprulife.com", "weight": 23}, {"source": "loksatta.com", "target": "indianexpress.com", "weight": 161}, {"source": "loksatta.com", "target": "instagram.com", "weight": 1}, {"source": "loksatta.com", "target": "inuth.com", "weight": 23}, {"source": "loksatta.com", "target": "jansatta.com", "weight": 23}, {"source": "loksatta.com", "target": "loksatta.page.link", "weight": 23}, {"source": "loksatta.com", "target": "malayalam.indianexpress.com", "weight": 23}, {"source": "loksatta.com", "target": "myvi.in", "weight": 23}, {"source": "loksatta.com", "target": "news.google.com", "weight": 23}, {"source": "loksatta.com", "target": "preprod.loksatta.com", "weight": 2}, {"source": "loksatta.com", "target": "rngfoundation.com", "weight": 23}, {"source": "loksatta.com", "target": "t.co", "weight": 4}, {"source": "loksatta.com", "target": "t.me", "weight": 22}, {"source": "loksatta.com", "target": "tamil.indianexpress.com", "weight": 23}, {"source": "loksatta.com", "target": "twitter.com", "weight": 22}, {"source": "loksatta.com", "target": "whatsapp.com", "weight": 23}, {"source": "loksatta.com", "target": "whatsinthenews.org", "weight": 22}, {"source": "loksatta.com", "target": "wpvip.com", "weight": 23}, {"source": "loksatta.com", "target": "x.com", "weight": 33}, {"source": "loksatta.com", "target": "youtube.com", "weight": 23}, {"source": "maayboli.com", "target": "batmya.com", "weight": 3}, {"source": "maayboli.com", "target": "click.google-analytics.com", "weight": 2}, {"source": "maayboli.com", "target": "jahirati.maayboli.com", "weight": 3}, {"source": "maayboli.com", "target": "maayboli.cc", "weight": 3}, {"source": "maayboli.com", "target": "play.google.com", "weight": 2}, {"source": "maayboli.com", "target": "vishesh.maayboli.com", "weight": 3}, {"source": "madhurasrecipe.com", "target": "api.whatsapp.com", "weight": 17}, {"source": "madhurasrecipe.com", "target": "connect.ok.ru", "weight": 6}, {"source": "madhurasrecipe.com", "target": "facebook.com", "weight": 53}, {"source": "madhurasrecipe.com", "target": "in.pinterest.com", "weight": 19}, {"source": "madhurasrecipe.com", "target": "instagram.com", "weight": 36}, {"source": "madhurasrecipe.com", "target": "linkedin.com", "weight": 17}, {"source": "madhurasrecipe.com", "target": "madhurasrecipeclub.com", "weight": 19}, {"source": "madhurasrecipe.com", "target": "pinterest.com", "weight": 34}, {"source": "madhurasrecipe.com", "target": "reddit.com", "weight": 17}, {"source": "madhurasrecipe.com", "target": "telegram.me", "weight": 17}, {"source": "madhurasrecipe.com", "target": "thebestfucksites.com", "weight": 1}, {"source": "madhurasrecipe.com", "target": "twitter.com", "weight": 78}, {"source": "madhurasrecipe.com", "target": "vk.com", "weight": 6}, {"source": "madhurasrecipe.com", "target": "youtube.com", "weight": 19}, {"source": "maharashtratimes.com", "target": "bangla.indiatimes.com", "weight": 23}, {"source": "maharashtratimes.com", "target": "blogs.maharashtratimes.indiatimes.com", "weight": 16}, {"source": "maharashtratimes.com", "target": "colombiaonline.com", "weight": 23}, {"source": "maharashtratimes.com", "target": "epaper.timesgroup.com", "weight": 16}, {"source": "maharashtratimes.com", "target": "facebook.com", "weight": 23}, {"source": "maharashtratimes.com", "target": "google.com", "weight": 16}, {"source": "maharashtratimes.com", "target": "iamgujarat.com", "weight": 23}, {"source": "maharashtratimes.com", "target": "instagram.com", "weight": 25}, {"source": "maharashtratimes.com", "target": "malayalam.samayam.com", "weight": 23}, {"source": "maharashtratimes.com", "target": "marathi.economictimes.com", "weight": 16}, {"source": "maharashtratimes.com", "target": "navbharattimes.indiatimes.com", "weight": 24}, {"source": "maharashtratimes.com", "target": "news.google.com", "weight": 22}, {"source": "maharashtratimes.com", "target": "play.google.com", "weight": 15}, {"source": "maharashtratimes.com", "target": "pregatips.com", "weight": 41}, {"source": "maharashtratimes.com", "target": "samayam.com", "weight": 16}, {"source": "maharashtratimes.com", "target": "tamil.samayam.com", "weight": 23}, {"source": "maharashtratimes.com", "target": "telugu.samayam.com", "weight": 23}, {"source": "maharashtratimes.com", "target": "timescontent.com", "weight": 23}, {"source": "maharashtratimes.com", "target": "timesinternet.in", "weight": 23}, {"source": "maharashtratimes.com", "target": "timesofindia.indiatimes.com", "weight": 23}, {"source": "maharashtratimes.com", "target": "twitter.com", "weight": 23}, {"source": "maharashtratimes.com", "target": "vijaykarnataka.com", "weight": 23}, {"source": "maharashtratimes.com", "target": "youtube.com", "weight": 23}, {"source": "marathiblogs.in", "target": "1.bp.blogspot.com", "weight": 2}, {"source": "marathiblogs.in", "target": "2.bp.blogspot.com", "weight": 5}, {"source": "marathiblogs.in", "target": "3.bp.blogspot.com", "weight": 3}, {"source": "marathiblogs.in", "target": "4.bp.blogspot.com", "weight": 2}, {"source": "marathiblogs.in", "target": "aaydiyachikalpana.blogspot.com", "weight": 2}, {"source": "marathiblogs.in", "target": "anuvina.wordpress.com", "weight": 1}, {"source": "marathiblogs.in", "target": "blogger.googleusercontent.com", "weight": 3}, {"source": "marathiblogs.in", "target": "bringthepixel.com", "weight": 19}, {"source": "marathiblogs.in", "target": "facebook.com", "weight": 38}, {"source": "marathiblogs.in", "target": "globalfoodcooking.blogspot.com", "weight": 2}, {"source": "marathiblogs.in", "target": "hindolemanache.wordpress.com", "weight": 2}, {"source": "marathiblogs.in", "target": "kelkaramol.blogspot.com", "weight": 2}, {"source": "marathiblogs.in", "target": "learn.wordpress.org", "weight": 19}, {"source": "marathiblogs.in", "target": "marathiboli.in", "weight": 2}, {"source": "marathiblogs.in", "target": "marathifoodfunda.blogspot.com", "weight": 2}, {"source": "marathiblogs.in", "target": "mohanaprabhudesai.blogspot.com", "weight": 2}, {"source": "marathiblogs.in", "target": "new1.marathiblogs.in", "weight": 19}, {"source": "marathiblogs.in", "target": "pareshkale.blogspot.com", "weight": 2}, {"source": "marathiblogs.in", "target": "rameshthombre.com", "weight": 2}, {"source": "marathiblogs.in", "target": "twitter.com", "weight": 19}, {"source": "marathiblogs.in", "target": "wordpress.org", "weight": 76}, {"source": "marathiblogs.in", "target": "youtube.com", "weight": 19}, {"source": "marathimati.com", "target": "blogger.com", "weight": 41}, {"source": "marathimati.com", "target": "chat.whatsapp.com", "weight": 19}, {"source": "marathimati.com", "target": "drive.google.com", "weight": 19}, {"source": "marathimati.com", "target": "facebook.com", "weight": 20}, {"source": "marathimati.com", "target": "forms.gle", "weight": 19}, {"source": "marathimati.com", "target": "gandhifoundation.net", "weight": 1}, {"source": "marathimati.com", "target": "google.com", "weight": 19}, {"source": "marathimati.com", "target": "instagram.com", "weight": 20}, {"source": "marathimati.com", "target": "linkedin.com", "weight": 38}, {"source": "marathimati.com", "target": "maps.google.com", "weight": 1}, {"source": "marathimati.com", "target": "mkgandhi.org", "weight": 1}, {"source": "marathimati.com", "target": "news.google.com", "weight": 19}, {"source": "marathimati.com", "target": "pinterest.com", "weight": 19}, {"source": "marathimati.com", "target": "telegram.me", "weight": 19}, {"source": "marathimati.com", "target": "wa.me", "weight": 1}, {"source": "marathimati.com", "target": "x.com", "weight": 20}, {"source": "marathimati.com", "target": "youtube.com", "weight": 40}, {"source": "marathisrushti.com", "target": "cybershoppee.com", "weight": 10}, {"source": "marathisrushti.com", "target": "facebook.com", "weight": 10}, {"source": "marathisrushti.com", "target": "fontfreedom.com", "weight": 1}, {"source": "marathisrushti.com", "target": "forms.gle", "weight": 9}, {"source": "marathisrushti.com", "target": "imojo.in", "weight": 1}, {"source": "marathisrushti.com", "target": "instagram.com", "weight": 10}, {"source": "marathisrushti.com", "target": "marathibooks.com", "weight": 13}, {"source": "marathisrushti.com", "target": "marathisrushti.in", "weight": 11}, {"source": "marathisrushti.com", "target": "youtube.com", "weight": 11}, {"source": "marathivishwakosh.org", "target": "directorate-marathi.maharashtra.gov.in", "weight": 43}, {"source": "marathivishwakosh.org", "target": "india.gov.in", "weight": 1}, {"source": "marathivishwakosh.org", "target": "mahait.org", "weight": 1}, {"source": "marathivishwakosh.org", "target": "maharashtra.gov.in", "weight": 1}, {"source": "marathivishwakosh.org", "target": "marathi.maharashtra.gov.in", "weight": 1}, {"source": "marathivishwakosh.org", "target": "shabdakosh-marathi.maharashtra.gov.in", "weight": 32}, {"source": "marathivishwakosh.org", "target": "wponetap.com", "weight": 1}, {"source": "mpscmaterial.com", "target": "64.227.174.39", "weight": 12}, {"source": "mpscmaterial.com", "target": "drive.google.com", "weight": 1}, {"source": "mpscmaterial.com", "target": "gravatar.com", "weight": 1}, {"source": "mpscmaterial.com", "target": "t.me", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ab.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "abstract.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ace.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ady.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "af.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "als.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "alt.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "am.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ami.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "an.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ang.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ann.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "anp.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ar.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "arc.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ary.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "arz.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "as.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ast.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "atj.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "av.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "avk.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "awa.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ay.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "az.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "azb.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ba.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ban.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "bar.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "bat-smg.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "bbc.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "bcl.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "bdr.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "be-tarask.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "be.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "bew.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "bg.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "bh.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "bi.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "bjn.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "blk.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "bm.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "bn.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "bo.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "bol.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "bpy.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "br.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "bs.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "btm.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "bug.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "bxr.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ca.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "cbk-zam.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "cdo.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ce.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ceb.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ch.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "chr.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "chy.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ckb.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "co.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "commons.wikimedia.org", "weight": 3}, {"source": "mr.wikipedia.org", "target": "cr.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "creativecommons.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "crh.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "cs.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "csb.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "cu.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "cv.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "cy.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "da.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "dag.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "de.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "developer.wikimedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "dga.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "din.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "diq.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "donate.wikimedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "dsb.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "dtp.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "dty.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "dv.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "dz.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ee.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "el.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "eml.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "en.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "eo.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "es.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "et.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "eu.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ext.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "fa.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "fat.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ff.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "fi.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "fiu-vro.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "fj.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "fo.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "fon.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "foundation.wikimedia.org", "weight": 6}, {"source": "mr.wikipedia.org", "target": "fr.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "frp.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "frr.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "fur.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "fy.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ga.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "gag.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "gan.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "gcr.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "gd.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "gl.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "glk.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "gn.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "gom.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "gor.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "got.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "gpe.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "gu.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "guc.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "gur.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "guw.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "gv.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ha.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "hak.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "haw.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "he.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "hi.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "hif.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "hr.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "hsb.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ht.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "hu.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "hy.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "hyw.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ia.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "iba.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "id.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ie.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ig.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "igl.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ik.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ilo.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "inh.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "io.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "is.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "isv.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "it.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "iu.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ja.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "jam.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "jbo.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "jv.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ka.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "kaa.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "kab.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "kai.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "kaj.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "kbd.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "kbp.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "kcg.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "kg.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "kge.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ki.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "kk.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "kl.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "km.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "kn.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "knc.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ko.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "koi.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "krc.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ks.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ksh.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ku.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "kus.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "kv.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "kw.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ky.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "la.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "lad.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "lb.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "lbe.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "lez.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "lfn.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "lg.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "li.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "lij.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "lld.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "lmo.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ln.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "lo.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "lt.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ltg.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "lv.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mad.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mag.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mai.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "map-bms.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mdf.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mediawiki.org", "weight": 4}, {"source": "mr.wikipedia.org", "target": "meta.wikimedia.org", "weight": 3}, {"source": "mr.wikipedia.org", "target": "mg.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mhr.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mi.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "min.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mk.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ml.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mn.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mni.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mnw.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mos.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mr.m.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mr.wikibooks.org", "weight": 2}, {"source": "mr.wikipedia.org", "target": "mr.wikinews.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mr.wikiquote.org", "weight": 2}, {"source": "mr.wikipedia.org", "target": "mr.wikisource.org", "weight": 2}, {"source": "mr.wikipedia.org", "target": "mr.wikiversity.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mr.wiktionary.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mrj.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ms.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mt.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mwl.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "my.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "myv.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "mzn.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "nah.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "nap.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "nds-nl.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "nds.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ne.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "new.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "nia.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "nl.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "nn.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "no.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "nov.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "nqo.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "nr.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "nrm.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "nso.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "nup.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "nv.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ny.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "oc.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "olo.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "om.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "or.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "os.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "outreach.wikimedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "pa.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "pag.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "pam.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "pap.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "pcd.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "pcm.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "pdc.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "pfl.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "pi.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "pl.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "pms.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "pnb.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "pnt.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ppl.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ps.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "pt.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "pwn.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "qu.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "rki.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "rm.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "rmy.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "rn.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ro.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "roa-rup.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "roa-tara.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "rsk.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ru.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "rue.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "rw.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "sa.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "sah.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "sat.wikipedia.org", "weight": 2}, {"source": "mr.wikipedia.org", "target": "sc.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "scn.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "sco.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "sd.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "se.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "sg.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "sh.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "shi.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "shn.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "si.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "simple.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "sk.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "skr.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "sl.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "sm.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "smn.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "sn.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "so.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "species.wikimedia.org", "weight": 2}, {"source": "mr.wikipedia.org", "target": "sq.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "sr.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "srn.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ss.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "st.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "stats.wikimedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "stq.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "su.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "sv.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "sw.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "syl.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "szl.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "szy.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ta.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "tay.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "tcy.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "tdd.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "te.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "tet.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "tg.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "th.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ti.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "tig.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "tk.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "tl.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "tly.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "tn.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "to.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "tok.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "tpi.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "tr.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "trv.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ts.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "tt.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "tum.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "tw.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ty.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "tyv.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "udm.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ug.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "uk.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ur.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "uz.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "ve.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "vec.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "vep.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "vi.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "vls.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "vo.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "wa.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "war.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "wikidata.org", "weight": 3}, {"source": "mr.wikipedia.org", "target": "wikifunctions.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "wikimania.wikimedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "wikimedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "wikimediafoundation.org", "weight": 2}, {"source": "mr.wikipedia.org", "target": "wikisource.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "wo.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "wuu.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "xal.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "xh.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "xmf.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "yi.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "yo.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "za.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "zea.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "zgh.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "zh-classical.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "zh-min-nan.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "zh-yue.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "zh.wikipedia.org", "weight": 1}, {"source": "mr.wikipedia.org", "target": "zu.wikipedia.org", "weight": 1}, {"source": "navarashtra.com", "target": "epaper.navarashtra.com", "weight": 19}, {"source": "navarashtra.com", "target": "epaper.navbharatlive.com", "weight": 19}, {"source": "navarashtra.com", "target": "facebook.com", "weight": 19}, {"source": "navarashtra.com", "target": "instagram.com", "weight": 19}, {"source": "navarashtra.com", "target": "navbharatlive.com", "weight": 19}, {"source": "navarashtra.com", "target": "news.google.com", "weight": 19}, {"source": "navarashtra.com", "target": "play.google.com", "weight": 19}, {"source": "navarashtra.com", "target": "x.com", "weight": 19}, {"source": "navarashtra.com", "target": "youtube.com", "weight": 19}, {"source": "news18marathi.com", "target": "adwise.nw18.com", "weight": 19}, {"source": "news18marathi.com", "target": "api.whatsapp.com", "weight": 12}, {"source": "news18marathi.com", "target": "assam.news18.com", "weight": 19}, {"source": "news18marathi.com", "target": "bengali.news18.com", "weight": 19}, {"source": "news18marathi.com", "target": "cnbctv18.com", "weight": 19}, {"source": "news18marathi.com", "target": "facebook.com", "weight": 31}, {"source": "news18marathi.com", "target": "firstpost.com", "weight": 19}, {"source": "news18marathi.com", "target": "gujarati.news18.com", "weight": 19}, {"source": "news18marathi.com", "target": "hindi.news18.com", "weight": 19}, {"source": "news18marathi.com", "target": "historyindia.com", "weight": 19}, {"source": "news18marathi.com", "target": "images.news18.com", "weight": 19}, {"source": "news18marathi.com", "target": "instagram.com", "weight": 19}, {"source": "news18marathi.com", "target": "jionews.com", "weight": 19}, {"source": "news18marathi.com", "target": "kannada.news18.com", "weight": 19}, {"source": "news18marathi.com", "target": "malayalam.news18.com", "weight": 19}, {"source": "news18marathi.com", "target": "moneycontrol.com", "weight": 19}, {"source": "news18marathi.com", "target": "mtvindia.com", "weight": 19}, {"source": "news18marathi.com", "target": "news.google.com", "weight": 18}, {"source": "news18marathi.com", "target": "news18.com", "weight": 57}, {"source": "news18marathi.com", "target": "news18marathi.comhttps", "weight": 19}, {"source": "news18marathi.com", "target": "odia.news18.com", "weight": 19}, {"source": "news18marathi.com", "target": "onelink.to", "weight": 19}, {"source": "news18marathi.com", "target": "punjab.news18.com", "weight": 19}, {"source": "news18marathi.com", "target": "t.co", "weight": 1}, {"source": "news18marathi.com", "target": "tamil.news18.com", "weight": 19}, {"source": "news18marathi.com", "target": "telegram.me", "weight": 12}, {"source": "news18marathi.com", "target": "telugu.news18.com", "weight": 19}, {"source": "news18marathi.com", "target": "twitter.com", "weight": 12}, {"source": "news18marathi.com", "target": "urdu.news18.com", "weight": 19}, {"source": "news18marathi.com", "target": "whatsapp.com", "weight": 19}, {"source": "news18marathi.com", "target": "x.com", "weight": 21}, {"source": "news18marathi.com", "target": "youtube.com", "weight": 19}, {"source": "paisamarg.com", "target": "gravatar.com", "weight": 1}, {"source": "paisamarg.com", "target": "wordpress.org", "weight": 1}, {"source": "prahaar.in", "target": "api.whatsapp.com", "weight": 18}, {"source": "prahaar.in", "target": "crictimes.org", "weight": 1}, {"source": "prahaar.in", "target": "epaper.prahaar.in", "weight": 19}, {"source": "prahaar.in", "target": "facebook.com", "weight": 37}, {"source": "prahaar.in", "target": "instagram.com", "weight": 20}, {"source": "prahaar.in", "target": "pinterest.com", "weight": 18}, {"source": "prahaar.in", "target": "twitter.com", "weight": 37}, {"source": "prahaar.in", "target": "whatsapp.com", "weight": 19}, {"source": "prahaar.in", "target": "x.com", "weight": 2}, {"source": "prahaar.in", "target": "youtube.com", "weight": 20}, {"source": "pudhari.news", "target": "api.whatsapp.com", "weight": 18}, {"source": "pudhari.news", "target": "apps.apple.com", "weight": 17}, {"source": "pudhari.news", "target": "epaper.pudhari.news", "weight": 19}, {"source": "pudhari.news", "target": "facebook.com", "weight": 18}, {"source": "pudhari.news", "target": "linkedin.com", "weight": 18}, {"source": "pudhari.news", "target": "play.google.com", "weight": 34}, {"source": "pudhari.news", "target": "quintype.com", "weight": 19}, {"source": "pudhari.news", "target": "twitter.com", "weight": 18}, {"source": "saamana.com", "target": "epaper.saamana.com", "weight": 38}, {"source": "saamana.com", "target": "facebook.com", "weight": 37}, {"source": "saamana.com", "target": "hindisaamana.com", "weight": 19}, {"source": "saamana.com", "target": "instagram.com", "weight": 37}, {"source": "saamana.com", "target": "m.dailyhunt.in", "weight": 19}, {"source": "saamana.com", "target": "news.google.com", "weight": 19}, {"source": "saamana.com", "target": "play.google.com", "weight": 38}, {"source": "saamana.com", "target": "twitter.com", "weight": 55}, {"source": "saamana.com", "target": "whatsapp.com", "weight": 19}, {"source": "saamana.com", "target": "x.com", "weight": 19}, {"source": "saamana.com", "target": "youtube.com", "weight": 74}, {"source": "saamana.com", "target": "zetabytesolutions.com", "weight": 19}, {"source": "saamtv.esakal.com", "target": "agrowon.esakal.com", "weight": 6}, {"source": "saamtv.esakal.com", "target": "api.whatsapp.com", "weight": 5}, {"source": "saamtv.esakal.com", "target": "apps.apple.com", "weight": 5}, {"source": "saamtv.esakal.com", "target": "dainikgomantak.esakal.com", "weight": 6}, {"source": "saamtv.esakal.com", "target": "epaper.esakal.com", "weight": 6}, {"source": "saamtv.esakal.com", "target": "esakal.com", "weight": 40}, {"source": "saamtv.esakal.com", "target": "facebook.com", "weight": 5}, {"source": "saamtv.esakal.com", "target": "gomantaktimes.com", "weight": 6}, {"source": "saamtv.esakal.com", "target": "linkedin.com", "weight": 5}, {"source": "saamtv.esakal.com", "target": "play.google.com", "weight": 5}, {"source": "saamtv.esakal.com", "target": "quintype.com", "weight": 6}, {"source": "saamtv.esakal.com", "target": "sakalmediagroup.com", "weight": 6}, {"source": "saamtv.esakal.com", "target": "sakalpublications.com", "weight": 6}, {"source": "saamtv.esakal.com", "target": "sarkarnama.esakal.com", "weight": 6}, {"source": "saamtv.esakal.com", "target": "socialforaction.com", "weight": 6}, {"source": "saamtv.esakal.com", "target": "thebridgechronicle.com", "weight": 6}, {"source": "saamtv.esakal.com", "target": "twitter.com", "weight": 5}, {"source": "sarkarnama.esakal.com", "target": "agrowon.esakal.com", "weight": 9}, {"source": "sarkarnama.esakal.com", "target": "api.whatsapp.com", "weight": 8}, {"source": "sarkarnama.esakal.com", "target": "apps.apple.com", "weight": 7}, {"source": "sarkarnama.esakal.com", "target": "dainikgomantak.esakal.com", "weight": 9}, {"source": "sarkarnama.esakal.com", "target": "esakal.com", "weight": 16}, {"source": "sarkarnama.esakal.com", "target": "facebook.com", "weight": 15}, {"source": "sarkarnama.esakal.com", "target": "gomantaktimes.com", "weight": 9}, {"source": "sarkarnama.esakal.com", "target": "instagram.com", "weight": 7}, {"source": "sarkarnama.esakal.com", "target": "linkedin.com", "weight": 8}, {"source": "sarkarnama.esakal.com", "target": "play.google.com", "weight": 7}, {"source": "sarkarnama.esakal.com", "target": "quintype.com", "weight": 9}, {"source": "sarkarnama.esakal.com", "target": "saamtv.esakal.com", "weight": 9}, {"source": "sarkarnama.esakal.com", "target": "sakalmediagroup.com", "weight": 9}, {"source": "sarkarnama.esakal.com", "target": "sakalpublications.com", "weight": 9}, {"source": "sarkarnama.esakal.com", "target": "sarkarnama.in", "weight": 27}, {"source": "sarkarnama.esakal.com", "target": "sarkarnamaepaper.esakal.com", "weight": 16}, {"source": "sarkarnama.esakal.com", "target": "sharechat.com", "weight": 7}, {"source": "sarkarnama.esakal.com", "target": "socialforaction.com", "weight": 9}, {"source": "sarkarnama.esakal.com", "target": "t.co", "weight": 2}, {"source": "sarkarnama.esakal.com", "target": "t.me", "weight": 7}, {"source": "sarkarnama.esakal.com", "target": "tanishkafoundation.org", "weight": 9}, {"source": "sarkarnama.esakal.com", "target": "thebridgechronicle.com", "weight": 9}, {"source": "sarkarnama.esakal.com", "target": "twitter.com", "weight": 16}, {"source": "sarkarnama.esakal.com", "target": "whatsapp.com", "weight": 7}, {"source": "sarkarnama.esakal.com", "target": "x.com", "weight": 8}, {"source": "sarkarnama.esakal.com", "target": "youtube.com", "weight": 7}, {"source": "shabdakosh-marathi.maharashtra.gov.in", "target": "mahait.org", "weight": 1}, {"source": "shabdakosh-marathi.maharashtra.gov.in", "target": "shabdakosh.marathi.gov.in", "weight": 2}, {"source": "shetimitra.in", "target": "google.com", "weight": 8}, {"source": "shetimitra.in", "target": "govtjoblink.com", "weight": 4}, {"source": "shetimitra.in", "target": "termsfeed.com", "weight": 3}, {"source": "tarunbharat.net", "target": "bharatwani.tarunbharat.net", "weight": 1}, {"source": "tarunbharat.net", "target": "epaper.tarunbharat.net", "weight": 3}, {"source": "tarunbharat.net", "target": "facebook.com", "weight": 2}, {"source": "tarunbharat.net", "target": "google.com", "weight": 1}, {"source": "tarunbharat.net", "target": "instagram.com", "weight": 2}, {"source": "tarunbharat.net", "target": "play.google.com", "weight": 2}, {"source": "tarunbharat.net", "target": "sangraha.net", "weight": 1}, {"source": "tarunbharat.net", "target": "t.me", "weight": 1}, {"source": "tarunbharat.net", "target": "twitter.com", "weight": 2}, {"source": "tarunbharat.net", "target": "whatsapp.com", "weight": 1}, {"source": "tarunbharat.net", "target": "youtube.com", "weight": 3}, {"source": "tv9marathi.com", "target": "apps.apple.com", "weight": 18}, {"source": "tv9marathi.com", "target": "facebook.com", "weight": 18}, {"source": "tv9marathi.com", "target": "google.com", "weight": 15}, {"source": "tv9marathi.com", "target": "instagram.com", "weight": 19}, {"source": "tv9marathi.com", "target": "malayalamtv9.com", "weight": 18}, {"source": "tv9marathi.com", "target": "money9live.com", "weight": 18}, {"source": "tv9marathi.com", "target": "news.google.com", "weight": 17}, {"source": "tv9marathi.com", "target": "news9live.com", "weight": 18}, {"source": "tv9marathi.com", "target": "play.google.com", "weight": 18}, {"source": "tv9marathi.com", "target": "tv9.com", "weight": 18}, {"source": "tv9marathi.com", "target": "tv9bangla.com", "weight": 18}, {"source": "tv9marathi.com", "target": "tv9gujarati.com", "weight": 18}, {"source": "tv9marathi.com", "target": "tv9hindi.com", "weight": 18}, {"source": "tv9marathi.com", "target": "tv9kannada.com", "weight": 18}, {"source": "tv9marathi.com", "target": "tv9punjabi.com", "weight": 18}, {"source": "tv9marathi.com", "target": "tv9tamilnews.com", "weight": 18}, {"source": "tv9marathi.com", "target": "tv9telugu.com", "weight": 18}, {"source": "tv9marathi.com", "target": "tv9up.com", "weight": 18}, {"source": "tv9marathi.com", "target": "twitter.com", "weight": 18}, {"source": "tv9marathi.com", "target": "whatsapp.com", "weight": 35}, {"source": "tv9marathi.com", "target": "youtube.com", "weight": 35}]
+        };
+
+        const canvas = document.getElementById('graph-canvas');
+        const ctx = canvas.getContext('2d');
+        let width = canvas.width = canvas.offsetWidth;
+        let height = canvas.height = canvas.offsetHeight;
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = canvas.offsetWidth;
+            height = canvas.height = canvas.offsetHeight;
+        });
+
+        // Categories setup
+        const categories = [...new Set(graphData.nodes.map(n => n.category))];
+        const chipsContainer = document.getElementById('cat-chips');
+        let selectedCategory = null;
+
+        categories.forEach(cat => {
+            const chip = document.createElement('div');
+            chip.className = 'cat-chip';
+            chip.textContent = cat;
+            chip.onclick = () => {
+                if (selectedCategory === cat) {
+                    selectedCategory = null;
+                    chip.classList.remove('active');
+                } else {
+                    document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+                    selectedCategory = cat;
+                    chip.classList.add('active');
+                }
+            };
+            chipsContainer.appendChild(chip);
+        });
+
+        // Physics Simulation Nodes
+        const nodes = graphData.nodes.map((n, i) => {
+            const angle = (i / graphData.nodes.length) * 2 * Math.PI;
+            const radius = 220 + Math.random() * 120;
+            return {
+                ...n,
+                x: width / 2 + Math.cos(angle) * radius,
+                y: height / 2 + Math.sin(angle) * radius,
+                vx: 0,
+                vy: 0,
+                radius: Math.max(8, Math.min(28, (n.pagerank || 0.02) * 350 + 6))
+            };
+        });
+
+        const nodeMap = new Map(nodes.map(n => [n.id, n]));
+        const edges = graphData.edges
+            .filter(e => nodeMap.has(e.source) && nodeMap.has(e.target))
+            .map(e => ({
+                source: nodeMap.get(e.source),
+                target: nodeMap.get(e.target),
+                weight: e.weight
+            }));
+
+        // Camera Pan & Zoom
+        let transform = { x: 0, y: 0, k: 1 };
+        let isDragging = false;
+        let startX, startY;
+        let hoveredNode = null;
+        let selectedNode = null;
+
+        canvas.addEventListener('mousedown', e => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = (e.clientX - rect.left - transform.x) / transform.k;
+            const mouseY = (e.clientY - rect.top - transform.y) / transform.k;
+            
+            const hit = nodes.find(n => Math.hypot(n.x - mouseX, n.y - mouseY) < n.radius);
+            if (hit) {
+                selectNode(hit);
+            } else {
+                isDragging = true;
+                startX = e.clientX - transform.x;
+                startY = e.clientY - transform.y;
+            }
+        });
+
+        window.addEventListener('mousemove', e => {
+            if (isDragging) {
+                transform.x = e.clientX - startX;
+                transform.y = e.clientY - startY;
+            } else {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = (e.clientX - rect.left - transform.x) / transform.k;
+                const mouseY = (e.clientY - rect.top - transform.y) / transform.k;
+                hoveredNode = nodes.find(n => Math.hypot(n.x - mouseX, n.y - mouseY) < n.radius);
+            }
+        });
+
+        window.addEventListener('mouseup', () => { isDragging = false; });
+
+        canvas.addEventListener('wheel', e => {
+            e.preventDefault();
+            const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+            transform.k = Math.max(0.3, Math.min(3.5, transform.k * zoomFactor));
+        });
+
+        // Search Filter
+        let searchQuery = "";
+        document.getElementById('node-search').addEventListener('input', e => {
+            searchQuery = e.target.value.toLowerCase().trim();
+        });
+
+        function selectNode(node) {
+            selectedNode = node;
+            const drawer = document.getElementById('node-drawer');
+            drawer.classList.add('open');
+            document.getElementById('d-title').textContent = node.label;
+            document.getElementById('d-domain').textContent = node.domain;
+            document.getElementById('d-pr').textContent = (node.pagerank || 0).toFixed(4);
+            document.getElementById('d-auth').textContent = (node.authority || 0).toFixed(4);
+            document.getElementById('d-hub').textContent = (node.hub || 0).toFixed(4);
+            document.getElementById('d-mr-ratio').textContent = node.marathi_ratio != null ? Math.round(node.marathi_ratio * 100) + "%" : "मोजले नाही";
+            document.getElementById('d-int-links').textContent = (node.internal_links || 0).toLocaleString();
+            document.getElementById('d-ext-links').textContent = (node.external_links || 0).toLocaleString();
+            document.getElementById('d-sitemap-status').textContent = "Status: " + node.sitemap_status;
+            document.getElementById('d-sitemap-url').textContent = node.sitemap_url || "Direct sitemap not detected";
+            document.getElementById('d-sitemap-count').textContent = (node.total_sitemap_urls || 0).toLocaleString() + " URLs discovered";
+
+            const badgeBox = document.getElementById('d-badge-container');
+            badgeBox.innerHTML = `<span class="pill-badge" style="background: ${node.color}22; color: ${node.color}; border: 1px solid ${node.color}55;">${node.category}</span>`;
+        }
+
+        document.getElementById('d-close').onclick = () => {
+            document.getElementById('node-drawer').classList.remove('open');
+            selectedNode = null;
+        };
+
+        // Physics step
+        function stepPhysics() {
+            const repulsion = 1400;
+            const centerGravity = 0.015;
+
+            // Repulsion between nodes
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const dx = nodes[j].x - nodes[i].x;
+                    const dy = nodes[j].y - nodes[i].y;
+                    const dist = Math.hypot(dx, dy) || 1;
+                    if (dist < 400) {
+                        const force = repulsion / (dist * dist);
+                        const fx = (dx / dist) * force;
+                        const fy = (dy / dist) * force;
+                        nodes[i].vx -= fx;
+                        nodes[i].vy -= fy;
+                        nodes[j].vx += fx;
+                        nodes[j].vy += fy;
+                    }
+                }
+            }
+
+            // Attraction along edges
+            edges.forEach(e => {
+                const dx = e.target.x - e.source.x;
+                const dy = e.target.y - e.source.y;
+                const dist = Math.hypot(dx, dy) || 1;
+                const springForce = (dist - 140) * 0.004;
+                const fx = (dx / dist) * springForce;
+                const fy = (dy / dist) * springForce;
+                e.source.vx += fx;
+                e.source.vy += fy;
+                e.target.vx -= fx;
+                e.target.vy -= fy;
+            });
+
+            // Damping & center attraction
+            const cx = width / 2;
+            const cy = height / 2;
+            nodes.forEach(n => {
+                n.vx += (cx - n.x) * centerGravity;
+                n.vy += (cy - n.y) * centerGravity;
+                n.vx *= 0.88;
+                n.vy *= 0.88;
+                n.x += n.vx;
+                n.y += n.vy;
+            });
+        }
+
+        // Render Loop
+        function render() {
+            stepPhysics();
+
+            ctx.clearRect(0, 0, width, height);
+            ctx.save();
+            ctx.translate(transform.x, transform.y);
+            ctx.scale(transform.k, transform.k);
+
+            // Draw Edges
+            edges.forEach(e => {
+                const isMatch = (!selectedCategory || (e.source.category === selectedCategory && e.target.category === selectedCategory));
+                ctx.beginPath();
+                ctx.moveTo(e.source.x, e.source.y);
+                ctx.lineTo(e.target.x, e.target.y);
+                ctx.strokeStyle = isMatch ? 'rgba(56, 189, 248, 0.22)' : 'rgba(255, 255, 255, 0.04)';
+                ctx.lineWidth = Math.min(3, Math.max(0.5, Math.log(e.weight + 1)));
+                ctx.stroke();
+            });
+
+            // Draw Nodes
+            nodes.forEach(n => {
+                const matchesCategory = !selectedCategory || n.category === selectedCategory;
+                const matchesSearch = !searchQuery || n.domain.includes(searchQuery) || n.label.toLowerCase().includes(searchQuery);
+                const isDimmed = !matchesCategory || !matchesSearch;
+
+                const isSelected = selectedNode && selectedNode.id === n.id;
+                const isHovered = hoveredNode && hoveredNode.id === n.id;
+
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, n.radius, 0, 2 * Math.PI);
+                ctx.fillStyle = isDimmed ? 'rgba(100, 116, 139, 0.2)' : n.color;
+                ctx.fill();
+
+                if (isSelected || isHovered) {
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+
+                // Label
+                if (!isDimmed || isSelected || isHovered || transform.k > 1.2) {
+                    ctx.font = '11px "Plus Jakarta Sans", sans-serif';
+                    ctx.fillStyle = isDimmed ? 'rgba(148, 163, 184, 0.4)' : '#f8fafc';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(n.label, n.x, n.y + n.radius + 14);
+                }
+            });
+
+            ctx.restore();
+            requestAnimationFrame(render);
+        }
+
+        render();
+    </script>
+</body>
+</html>
