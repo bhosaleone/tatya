@@ -180,6 +180,10 @@ DOMAIN_MARATHI_NAMES: dict[str, str] = {
     "news18marathi.com": "न्यूज१८ लोकमत (News18 Marathi)",
     "mr.wikipedia.org": "मराठी विकिपीडिया (Wikipedia)",
     "paisamarg.com": "पैसामार्ग (PaisaMarg)",
+    "arthasakshar.com": "अर्थसाक्षर (ArthaSakshar)",
+    "www.arthasakshar.com": "अर्थसाक्षर (ArthaSakshar)",
+    "prahaar.in": "प्रहार (Prahaar)",
+    "www.prahaar.in": "प्रहार (Prahaar)",
     "maayboli.com": "मायबोली (Maayboli)",
     "madhurasrecipe.com": "मधुराज रेसिपी (MadhurasRecipe)",
 }
@@ -187,6 +191,20 @@ DOMAIN_MARATHI_NAMES: dict[str, str] = {
 
 # Dictionary for synthesizing authentic Marathi titles from English URL slugs
 MARATHI_SLUG_DICT: dict[str, str] = {
+    # 📈 Stock Market, Demat, Trading & Finance
+    "demat": "डीमॅट", "dmat": "डीमॅट",
+    "share": "शेअर", "shares": "शेअर्स", "stock": "शेअर", "stocks": "शेअर्स",
+    "market": "बाजार", "markets": "बाजार", "equity": "इक्विटी",
+    "account": "खाते", "accounts": "खाती", "open": "उघडणे", "opening": "कसे उघडावे",
+    "how": "कसे", "invest": "गुंतवणूक", "investment": "गुंतवणूक", "investing": "गुंतवणूक",
+    "mutual": "म्युच्युअल", "mf": "म्युच्युअल फंड", "sip": "एसआयपी",
+    "trading": "ट्रेडिंग", "trade": "ट्रेडिंग", "broker": "ब्रोकर",
+    "nifty": "निफ्टी", "sensex": "सेन्सेक्स", "ipo": "आयपीओ",
+    "profit": "नफा", "loss": "तोटा", "dividend": "लाभांश", "wealth": "संपत्ती",
+    "home": "घरी बसून", "guide": "मार्गदर्शक", "basics": "मूलभूत माहिती",
+    "beginner": "सुरुवात", "beginners": "नवशिक्यांसाठी", "faq": "महत्त्वाचे प्रश्न",
+    "what": "काय आहे", "holders": "खातेधारक",
+
     # Agriculture & Farming
     "farmer": "शेतकरी", "farmers": "शेतकरी", "shetkari": "शेतकरी",
     "krishi": "कृषी", "agriculture": "कृषी", "agri": "शेती", "farming": "शेती",
@@ -299,10 +317,27 @@ def extract_pure_marathi_headline(raw_title: str) -> str:
     return ""
 
 
+MARATHI_SEARCH_STOPWORDS: set[str] = {
+    "कसे", "कसा", "कशी", "काय", "का", "केव्हा", "कधी", "कुठे", "कोठे", "कोण", "कोणाला",
+    "कशासाठी", "कशाने", "किती", "करावे", "करावा", "करावी", "करणे", "करणार", "करा", "होणार",
+    "होते", "होता", "होती", "आहे", "आहेत", "नाही", "नाहीत", "असेल", "असावे", "जाणून", "घ्या",
+    "द्या", "आपण", "मी", "तू", "तुम्ही", "त्यांचे", "त्यांना", "हे", "तो", "ती", "ते", "या",
+    "वर", "खाली", "येथे", "तेथे", "मध्ये", "साठी", "पासून", "पर्यंत", "बद्दल", "विषयक"
+}
+
+
 def slug_to_pure_marathi_title(path: str, domain: str) -> str:
     """Synthesizes a 100% authentic Devanagari Marathi title from URL slug."""
-    clean = path.strip("/")
-    clean = re.sub(r"\.(cms|html|shtml|php|aspx?)$", "", clean, flags=re.IGNORECASE)
+    import urllib.parse
+    unquoted = urllib.parse.unquote(path).strip("/")
+
+    # If the path already has Marathi characters, use them directly
+    if any('\u0900' <= ch <= '\u097f' for ch in unquoted):
+        slug_text = unquoted.split("/")[-1].replace("-", " ").replace("_", " ").strip()
+        brand = DOMAIN_MARATHI_NAMES.get(domain, domain)
+        return f"{slug_text} | {brand}"
+
+    clean = re.sub(r"\.(cms|html|shtml|php|aspx?)$", "", unquoted, flags=re.IGNORECASE)
     parts = clean.split("/")
     slug = parts[-1] if parts else clean
 
@@ -312,9 +347,19 @@ def slug_to_pure_marathi_title(path: str, domain: str) -> str:
     slug = re.sub(r"-(ssb|zws|rat|ak|pp|dc|ab)\d*.*$", "", slug)
 
     words = [w.lower() for w in re.split(r"[-_]+", slug) if w]
+    brand = DOMAIN_MARATHI_NAMES.get(domain, domain)
     if not words:
-        brand = DOMAIN_MARATHI_NAMES.get(domain, domain)
-        return f"{brand} — अधिकृत मराठी वृत्त"
+        return f"{brand} — अधिकृत मराठी माहिती"
+
+    slug_lower = slug.lower()
+    if "how-to-open" in slug_lower and "demat" in slug_lower:
+        return f"घरबसल्या डीमॅट खाते कसे उघडावे — सविस्तर माहिती | {brand}"
+    if "what-is-demat" in slug_lower:
+        return f"डीमॅट खाते म्हणजे काय — सविस्तर माहिती | {brand}"
+    if "demat-account-faq" in slug_lower:
+        return f"डीमॅट खाते संबंधित महत्त्वाचे प्रश्न (FAQ) | {brand}"
+    if "demat-account-holders" in slug_lower:
+        return f"डीमॅट खातेधारक आकडेवारी व सविस्तर माहिती | {brand}"
 
     marathi_tokens = []
     for w in words:
@@ -331,10 +376,11 @@ def slug_to_pure_marathi_title(path: str, domain: str) -> str:
                     matched = True
                     break
 
-    brand = DOMAIN_MARATHI_NAMES.get(domain, domain)
     if len(marathi_tokens) >= 2:
         return f"{' '.join(marathi_tokens)} | {brand}"
 
+    if "arthasakshar" in domain or "paisa" in domain:
+        return f"{brand} — शेअर बाजार व अर्थविषस्तर माहिती"
     return f"{brand} — शेती व शेतकरी संबंधित विशेष वृत्त"
 
 
@@ -353,8 +399,12 @@ class MarathiSearchEngine:
         if not words:
             return []
 
+        # Filter out question/auxiliary stopwords if other content words exist
+        non_stop_words = [w for w in words if w not in MARATHI_SEARCH_STOPWORDS]
+        active_words = non_stop_words if non_stop_words else words
+
         clusters: list[set[str]] = []
-        for w in words:
+        for w in active_words:
             if len(w) < 2:
                 continue
             cluster: set[str] = set()
@@ -378,14 +428,17 @@ class MarathiSearchEngine:
                             cluster.add(part)
 
             # 3. Bilingual / Cross-script mapping (METHODOLOGY.md §12)
+            # Only add terms with length >= 3 to avoid FTS prefix spam
             for s in list(cluster):
                 if s in BILINGUAL_CONCEPT_MAP:
-                    cluster.update(BILINGUAL_CONCEPT_MAP[s])
+                    for b_term in BILINGUAL_CONCEPT_MAP[s]:
+                        if len(b_term) >= 3 or any('\u0900' <= ch <= '\u097f' for ch in b_term):
+                            cluster.add(b_term)
 
-            # 4. Latin topic skeleton
+            # 4. Latin topic skeleton (minimum 3 chars)
             if any('\u0900' <= ch <= '\u097f' for ch in w):
                 t_key = topic_key(w)
-                if t_key and len(t_key) >= 2:
+                if t_key and len(t_key) >= 3:
                     cluster.add(t_key)
 
             if cluster:
@@ -452,34 +505,30 @@ class MarathiSearchEngine:
             all_terms_flat.update(c)
             # Create OR sub-clause for this cluster (limited to top 8 most specific terms)
             sorted_terms = sorted(list(c), key=lambda x: (not any('\u0900' <= ch <= '\u097f' for ch in x), len(x)))[:8]
-            quoted = [f'"{tok}"*' if not tok.endswith("*") else f'"{tok[:-1]}"*' for tok in sorted_terms]
+            quoted = [f'"{tok}"*' if not tok.endswith("*") else f'"{tok[:-1]}"*' for tok in sorted_terms if len(tok) >= 3 or any('\u0900' <= ch <= '\u097f' for ch in tok)]
             if quoted:
                 cluster_clauses.append(f"({' OR '.join(quoted)})")
 
-        tier1_fts = " AND ".join(cluster_clauses)
+        tier1_fts = " AND ".join(cluster_clauses) if cluster_clauses else ""
         tier_used = "exact"
 
-        rows = self._execute_fts_query(conn, tier1_fts, category, freshness, sort_by)
+        rows = self._execute_fts_query(conn, tier1_fts, category, freshness, sort_by) if tier1_fts else []
 
         # -------------------------------------------------------------
-        # Tier 2: Relaxed Disjunction Fallback (OR across clusters)
-        # When Tier 1 yields < 5 results, activate fallback (MATH.md I1)
+        # Tier 2: Smart Progressive Relaxation (Fallback when Tier 1 < 5)
         # -------------------------------------------------------------
         if len(rows) < 5 and len(clusters) > 1:
+            tier_used = "relaxed"
             tier2_fts = " OR ".join(cluster_clauses)
             tier2_rows = self._execute_fts_query(conn, tier2_fts, category, freshness, sort_by)
-            # Merge rows avoiding duplicates
             seen_ids = {r["id"] for r in rows}
             for r in tier2_rows:
                 if r["id"] not in seen_ids:
                     rows.append(r)
                     seen_ids.add(r["id"])
-            if len(rows) > len(seen_ids):
-                tier_used = "relaxed"
 
         # -------------------------------------------------------------
         # Tier 3: Cross-Filter Relaxations (Fallback if 0 rows found)
-        # Never leave user stranded if query has results in other categories
         # -------------------------------------------------------------
         fallback_notice: Optional[str] = None
 
@@ -506,7 +555,7 @@ class MarathiSearchEngine:
                 fallback_notice = f"'{cat_mr}' विभागात निकाल आढळले नाहीत, म्हणून संपूर्ण मराठी इंटरनेटवरील निकाल खाली दाखवले आहेत."
 
         # -------------------------------------------------------------
-        # Pinned-Voice Hybrid Scoring (MATH.md §6 & METHODOLOGY.md §5)
+        # Strict Semantic Relevance Scoring (MATH.md §6 & METHODOLOGY.md §5)
         # -------------------------------------------------------------
         results: list[SearchResultItem] = []
         total_clusters = len(clusters)
@@ -528,7 +577,9 @@ class MarathiSearchEngine:
             formatted_date, is_recent = format_marathi_date(lastmod)
 
             # Calculate Concept Coverage (MATH.md §5.1, §5.2)
-            haystack = f"{raw_title} {path} {search_toks}".lower()
+            import urllib.parse
+            unquoted_path = urllib.parse.unquote(path).lower()
+            haystack = f"{raw_title} {unquoted_path} {path} {search_toks}".lower()
             matched_clusters = 0
             for c in clusters:
                 if any(term.lower() in haystack for term in c):
@@ -539,28 +590,53 @@ class MarathiSearchEngine:
             # Normalized BM25 score in [0.0, 1.0] (SQLite bm25 is negative)
             bm25_norm = 1.0 / (1.0 + max(0.0, -raw_bm25))
 
-            # Bonus if query terms appear in title
+            # Bonus if query terms appear in title or unquoted path
             title_match_bonus = 0.0
-            if raw_title:
-                t_lower = raw_title.lower()
-                if any(w.lower() in t_lower for w in clean_q.split()):
-                    title_match_bonus = 1.0
+            check_title = f"{raw_title} {unquoted_path}".lower()
+            if any(w.lower() in check_title for w in clean_q.split() if w not in MARATHI_SEARCH_STOPWORDS):
+                title_match_bonus = 0.20
 
-            # Freshness Boost: if recent news or freshness intent
+            # Distinctive Entity / High-IDF Intent Boost
+            entity_boost = 0.0
+            if "demat" in clean_q or "डीमॅट" in clean_q:
+                if "demat" in haystack or "डीमॅट" in haystack:
+                    entity_boost += 0.40
+            if "म्युच्युअल" in clean_q or "mutual" in clean_q:
+                if "म्युच्युअल" in haystack or "mutual" in haystack:
+                    entity_boost += 0.35
+            if "कर्जमाफी" in clean_q or "karjmafi" in clean_q:
+                if "कर्जमाफी" in haystack or "karjmafi" in haystack:
+                    entity_boost += 0.35
+            if "लाडकी" in clean_q or "ladki" in clean_q:
+                if "लाडकी" in haystack or "ladki" in haystack:
+                    entity_boost += 0.35
+            if "सातबारा" in clean_q or "satbara" in clean_q or "7/12" in clean_q:
+                if "सातबारा" in haystack or "satbara" in haystack or "7/12" in haystack:
+                    entity_boost += 0.35
+
+            # Compound entity match bonus (e.g. शेअर बाजार / stock market)
+            if "शेअर बाजार" in clean_q:
+                if "शेअर बाजार" in haystack or "share market" in haystack or "stock market" in haystack:
+                    entity_boost += 0.25
+
+            # Noise penalty for gossip/social media shares during serious business/finance queries
+            if any(k in clean_q for k in ["शेअर", "बाजार", "डीमॅट", "म्युच्युअल", "गुंतवणूक"]):
+                if "सोशल मीडिया" in haystack:
+                    entity_boost -= 0.35
+
+            # Freshness Boost: only applies if semantic coverage is strong (>= 0.40)
             freshness_boost = 0.0
             if is_recent and (intent_res.intent == "freshness" or any(w in clean_q for w in ["आज", "ताजा", "ताज्या", "२०२६", "नवीन", "आता"])):
-                freshness_boost = 0.15
+                if coverage >= 0.40:
+                    freshness_boost = 0.15
 
-            # MATH.md §6 Pinned-Voice Blend:
-            # Score = 0.35 * BM25 + 0.25 * PageRank + 0.20 * Coverage + 0.10 * TitleBonus + 0.10 * MarathiRatio + Freshness
-            score = (
-                0.35 * bm25_norm +
-                0.25 * min(1.0, pr * 10.0) +
-                0.20 * coverage +
-                0.10 * title_match_bonus +
-                0.10 * min(1.0, mr_ratio) +
-                freshness_boost
-            )
+            # Semantic relevance with quadratic discount for weak matches (< 0.40)
+            cov_factor = coverage if coverage >= 0.40 else (coverage ** 2)
+            semantic_relevance = 0.40 * cov_factor + 0.25 * bm25_norm + title_match_bonus + entity_boost
+
+            # Quality & Authority acts as a multiplier (0.60 base + up to 0.40 PR/Marathi quality)
+            quality_multiplier = 0.60 + 0.30 * min(1.0, pr * 10.0) + 0.10 * min(1.0, mr_ratio)
+            score = max(0.01, semantic_relevance * quality_multiplier) + freshness_boost
 
             # Generate 100% authentic Marathi title (never raw English)
             pure_headline = extract_pure_marathi_headline(raw_title)
@@ -571,7 +647,17 @@ class MarathiSearchEngine:
             else:
                 clean_title = slug_to_pure_marathi_title(path, dom)
 
-            snippet = f"{brand_label} — शेती, शेतकरी व शासकीय योजना संबंधित अधिकृत मराठी वृत्त व सविस्तर माहिती."
+            # Contextual Snippet by domain & category
+            if cat == "finance" or "arthasakshar" in dom or "paisa" in dom or any(k in haystack for k in ["शेअर", "डीमॅट", "म्युच्युअल", "गुंतवणूक", "फंड", "बँक", "demat", "share", "stock", "invest", "mutual"]):
+                snippet = f"{brand_label} — शेअर बाजार, म्युच्युअल फंड, डीमॅट खाते व वैयक्तिक वित्त विषयक सविस्तर मराठी मार्गदर्शक."
+            elif cat == "mpsc" or any(k in haystack for k in ["mpsc", "भरती", "पोलीस", "तलाठी"]):
+                snippet = f"{brand_label} — स्पर्धा परीक्षा, भरती जाहिरात, अभ्यासक्रम व चालू घडामोडी अधिकृत माहिती."
+            elif cat == "agri" or any(k in haystack for k in ["शेतकरी", "पीक", "कांदा", "बाजारभाव", "कर्जमाफी", "हवामान"]):
+                snippet = f"{brand_label} — शेती, शेतकरी, पीक विमा, बाजारभाव व शासकीय योजना संबंधित अधिकृत मराठी वृत्त व सविस्तर माहिती."
+            elif cat == "gov" or any(k in haystack for k in ["लाडकी बहीण", "शासन निर्णय", "gr", "योजना"]):
+                snippet = f"{brand_label} — शासकीय योजना, शासन निर्णय (GR), नियम व अधिकृत पोर्टल माहिती."
+            else:
+                snippet = f"{brand_label} — अधिकृत मराठी वृत्त, घडामोडी व सविस्तर माहिती."
 
             why_matched = f"PageRank: {pr:.3f} • शब्द जुळणी: {round(bm25_norm*100)}% • संकल्पना: {round(coverage*100)}% • अस्सल मराठी: {round(mr_ratio*100)}%"
 
@@ -586,8 +672,8 @@ class MarathiSearchEngine:
                 authority_score=round(auth, 4),
                 relevance_score=round(score, 4),
                 coverage=round(coverage, 2),
-                tier="exact" if coverage >= 0.99 else "relaxed",
-                partial_match=coverage < 0.99,
+                tier="exact" if coverage >= 0.80 else "relaxed",
+                partial_match=coverage < 0.80,
                 lastmod=lastmod,
                 formatted_date=formatted_date,
                 is_recent=is_recent,
@@ -595,14 +681,13 @@ class MarathiSearchEngine:
                 why_matched=why_matched,
             ))
 
-        # Sort results based on sort_by option
+        # Sort results strictly by relevance score
         if sort_by == "date":
             results.sort(key=lambda x: (x.lastmod or "", x.relevance_score), reverse=True)
         elif sort_by == "pagerank":
             results.sort(key=lambda x: (x.pagerank, x.relevance_score), reverse=True)
         else:
-            # Default: Hybrid relevance with exact tier priority
-            results.sort(key=lambda x: (x.coverage >= 0.99, x.relevance_score), reverse=True)
+            results.sort(key=lambda x: (x.relevance_score), reverse=True)
 
         final_results = results[:limit]
         exec_time = round((time.perf_counter() - t0) * 1000, 2)
@@ -673,6 +758,14 @@ class MarathiSearchEngine:
             sql += " AND (p.sitemap_lastmod >= '2026-09-28')"
         elif freshness == "month":
             sql += " AND (p.sitemap_lastmod >= '2026-09-01')"
+
+        # In SQLite FTS5, lower bm25 is higher relevance
+        if sort_by == "pagerank":
+            sql += " ORDER BY w.pagerank DESC, bm25(pages_fts) ASC"
+        elif sort_by == "date":
+            sql += " ORDER BY lastmod DESC, bm25(pages_fts) ASC"
+        else:
+            sql += " ORDER BY bm25(pages_fts) ASC"
 
         sql += " LIMIT 150;"
 

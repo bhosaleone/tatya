@@ -2151,11 +2151,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         function getSuggestionIcon(text) {
             const t = text.toLowerCase();
-            if (t.includes('शेअर') || t.includes('फंड') || t.includes('sip') || t.includes('गुंतवणूक')) return '📈';
-            if (t.includes('कांदा') || t.includes('शेतकरी') || t.includes('सोयाबीन') || t.includes('कापूस')) return '🌾';
-            if (t.includes('लाडकी') || t.includes('योजना') || t.includes('शासन') || t.includes('जीआर')) return '📜';
-            if (t.includes('सातबारा') || t.includes('७/१२') || t.includes('फेरफार')) return '🏛️';
-            if (t.includes('mpsc') || t.includes('भरती') || t.includes('परीक्ष')) return '🎓';
+            if (t.includes('शेअर') || t.includes('फंड') || t.includes('sip') || t.includes('गुंतवणूक') || t.includes('demat') || t.includes('share') || t.includes('stock') || t.includes('डीमॅट')) return '📈';
+            if (t.includes('कांदा') || t.includes('शेतकरी') || t.includes('सोयाबीन') || t.includes('कापूस') || t.includes('shetkari') || t.includes('farmer') || t.includes('bhav') || t.includes('onion')) return '🌾';
+            if (t.includes('लाडकी') || t.includes('योजना') || t.includes('शासन') || t.includes('जीआर') || t.includes('ladki') || t.includes('gr') || t.includes('yojana')) return '📜';
+            if (t.includes('सातबारा') || t.includes('७/१२') || t.includes('फेरफार') || t.includes('satbara') || t.includes('7/12') || t.includes('utara')) return '🏛️';
+            if (t.includes('mpsc') || t.includes('भरती') || t.includes('परीक्ष') || t.includes('police') || t.includes('talathi')) return '🎓';
+            if (t.includes('हवामान') || t.includes('पाऊस') || t.includes('havaman') || t.includes('weather') || t.includes('rain') || t.includes('dakh')) return '🌦️';
             return '🔍';
         }
 

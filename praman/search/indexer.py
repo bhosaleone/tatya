@@ -64,7 +64,52 @@ MARATHI_COMPOUNDS: dict[str, list[str]] = {
 # Cross-script / Bilingual Concept Mapping (METHODOLOGY.md §12 Cross-script identity)
 # Connects Devanagari concepts with standard English URL slugs and Latin transliterations
 BILINGUAL_CONCEPT_MAP: dict[str, list[str]] = {
-    # Agriculture & Farmers
+    # 📈 Finance, Stock Market, Demat & Mutual Funds
+    "शेअर": ["stock", "share", "shares", "stocks", "equity"],
+    "शेअर्स": ["stock", "share", "shares", "stocks", "equity"],
+    "डीमॅट": ["demat", "dmat", "demat-account"],
+    "demat": ["डीमॅट", "dmat", "demat"],
+    "dmat": ["डीमॅट", "demat"],
+    "खाते": ["account", "khate", "acct"],
+    "account": ["खाते", "account", "khate"],
+    "उघडावे": ["open", "opening", "उघडणे"],
+    "उघडणे": ["open", "opening", "उघडावे"],
+    "open": ["उघडावे", "उघडणे", "open", "opening"],
+    "गुंतवणूक": ["investment", "investing", "invest"],
+    "investment": ["गुंतवणूक", "invest", "investment"],
+    "invest": ["गुंतवणूक", "invest"],
+    "म्युच्युअल": ["mutual", "mutual-fund", "mf"],
+    "mutual": ["म्युच्युअल", "mutual"],
+    "फंड": ["fund", "funds"],
+    "fund": ["फंड", "funds", "fund"],
+    "बाजार": ["market", "bazaar", "bazar"],
+    "market": ["बाजार", "मार्केट", "market"],
+    "ट्रेडिंग": ["trading", "trade"],
+    "trading": ["ट्रेडिंग", "trade"],
+    "ब्रोकर": ["broker", "brokerage"],
+    "broker": ["ब्रोकर", "broker"],
+    "एसआयपी": ["sip", "systematic-investment-plan"],
+    "sip": ["एसआयपी", "sip", "गुंतवणूक"],
+    "आयपीओ": ["ipo", "public-offer"],
+    "ipo": ["आयपीओ", "ipo"],
+    "सेन्सेक्स": ["sensex"],
+    "sensex": ["सेन्सेक्स", "sensex"],
+    "निफ्टी": ["nifty"],
+    "nifty": ["निफ्टी", "nifty"],
+    "बचत": ["saving", "savings"],
+    "savings": ["बचत", "savings"],
+    "लाभांश": ["dividend"],
+    "dividend": ["लाभांश", "dividend"],
+    "पोर्टफोलिओ": ["portfolio"],
+    "portfolio": ["पोर्टफोलिओ", "portfolio"],
+    "सोने": ["gold", "sone"],
+    "gold": ["सोने", "gold"],
+    "चांदी": ["silver", "chandi"],
+    "silver": ["चांदी", "silver"],
+    "बँक": ["bank", "banking"],
+    "bank": ["बँक", "बँका"],
+
+    # 🌾 Agriculture & Farmers
     "शेतकरी": ["farmer", "farmers", "shetkari", "kisan", "krishi", "agri"],
     "farmer": ["शेतकरी", "shetkari", "kisan"],
     "farmers": ["शेतकरी", "shetkari", "kisan"],
@@ -73,47 +118,73 @@ BILINGUAL_CONCEPT_MAP: dict[str, list[str]] = {
     "agri": ["शेती", "कृषी", "sheti"],
     "agriculture": ["शेती", "कृषी", "sheti"],
     "कृषी": ["agriculture", "agri", "krishi"],
-
-    # Loans & Finance
     "कर्ज": ["loan", "loans", "karj", "credit", "debt"],
     "कर्जमाफी": ["farmer-loan-waiver", "loan-waiver", "karjamafi", "karj-mafi", "karjmukti"],
     "loan": ["कर्ज", "karj", "finance"],
     "loans": ["कर्ज", "karj"],
     "karj": ["कर्ज", "loan"],
+    "karjmafi": ["कर्जमाफी", "karjmafi"],
     "credit": ["कर्ज", "पतपुरवठा", "credit"],
     "माफी": ["waiver", "relief", "mafi", "mukti"],
     "waiver": ["माफी", "कर्जमाफी", "मुक्ती"],
+    "पीक": ["crop", "crops", "pik"],
+    "विमा": ["insurance", "vima", "bima"],
+    "insurance": ["विमा", "vima"],
+    "कांदा": ["onion", "kanda"],
+    "onion": ["कांदा", "kanda"],
+    "कापूस": ["cotton", "kapus"],
+    "cotton": ["कापूस", "kapus"],
+    "सोयाबीन": ["soybean", "soya"],
+    "soybean": ["सोयाबीन", "soya"],
+    "हवामान": ["weather", "havaman", "forecast", "monsoon"],
+    "weather": ["हवामान", "havaman"],
+    "havaman": ["हवामान", "weather"],
+    "दुष्काळ": ["drought", "dushkal"],
+    "drought": ["दुष्काळ", "dushkal"],
+    "पाऊस": ["rain", "monsoon", "rainfall"],
+    "rain": ["पाऊस", "rain"],
+    "बाजारभाव": ["mandi", "rates", "price", "bazarbhav"],
+    "भाव": ["rate", "price", "bhav"],
 
-    # Schemes & Government
+    # 🏛️ Land Records & Revenue
+    "सातबारा": ["satbara", "7-12", "7/12", "utara"],
+    "satbara": ["सातबारा", "७/१२", "utara"],
+    "उतारा": ["utara", "extract"],
+    "utara": ["उतारा", "utara"],
+    "फेरफार": ["ferfar", "mutation"],
+    "ferfar": ["फेरफार", "ferfar"],
+
+    # 📜 Schemes & Government
+    "लाडकी": ["ladki", "ladaki"],
+    "बहीण": ["bahin"],
+    "ladki": ["लाडकी", "ladki"],
+    "bahin": ["बहीण", "bahin"],
     "योजना": ["scheme", "yojana", "initiative"],
     "yojana": ["योजना", "scheme"],
     "scheme": ["योजना", "yojana"],
     "अनुदान": ["subsidy", "anudan", "grant"],
+    "subsidy": ["अनुदान", "subsidy"],
     "सरकार": ["govt", "government", "sarkar"],
+    "sarkar": ["सरकार", "sarkar"],
     "शासन": ["shasan", "govt", "government"],
-
-    # Crops & Weather
-    "पीक": ["crop", "crops", "pik"],
-    "विमा": ["insurance", "vima", "bima"],
-    "insurance": ["विमा", "vima"],
-    "हवामान": ["weather", "havaman", "forecast", "monsoon"],
-    "weather": ["हवामान", "havaman"],
-    "दुष्काळ": ["drought", "dushkal"],
-    "पाऊस": ["rain", "monsoon", "rainfall"],
-
-    # News, Media & Politics
-    "बातम्या": ["news", "batmya", "updates"],
-    "बातमी": ["news", "batmi"],
-    "news": ["बातम्या", "बातमी", "वृत्त"],
+    "shasan": ["शासन", "shasan"],
+    "निर्णय": ["nirnay", "decision", "gr"],
+    "gr": ["शासन निर्णय", "gr"],
     "निवडणूक": ["election", "nivadnuk", "poll"],
     "अर्थसंकल्प": ["budget", "arthasankalp"],
+    "budget": ["अर्थसंकल्प", "budget"],
 
-    # Business & Market
-    "बाजारभाव": ["mandi", "rates", "price", "bazarbhav"],
-    "भाव": ["rate", "price", "bhav"],
-    "शेअर": ["stock", "share", "market"],
-    "बँक": ["bank", "banking"],
-    "bank": ["बँक", "बँका"],
+    # 🎓 Jobs & Exams
+    "भरती": ["bharti", "recruitment"],
+    "bharti": ["भरती", "recruitment"],
+    "पोलीस": ["police"],
+    "police": ["पोलीस", "police"],
+    "तलाठी": ["talathi"],
+    "talathi": ["तलाठी", "talathi"],
+    "नोकरी": ["naukri", "job", "jobs"],
+    "job": ["नोकरी", "job"],
+    "jobs": ["नोकरी", "jobs"],
+    "mpsc": ["MPSC", "एमपीएससी"],
 }
 
 
@@ -214,9 +285,11 @@ def extract_search_tokens(text: str) -> str:
     - Normalized morphology and oblique forms
     - Compound word splits (कर्जमाफी -> कर्ज, माफी)
     - Cross-script / Bilingual mapped tokens (METHODOLOGY.md §12)
-    - Topic consonant skeletons for Latin/Devanagari matching
+    - Topic consonant skeletons for Latin/Devanagari matching (length >= 3)
     """
-    clean = fold(text)
+    import urllib.parse
+    unquoted = urllib.parse.unquote(text)
+    clean = fold(unquoted)
     # Split by spaces, hyphens, slashes and punctuation
     raw_words = re.findall(r"[\w\u0900-\u097f]+", clean)
     tokens: set[str] = set()
@@ -248,10 +321,10 @@ def extract_search_tokens(text: str) -> str:
             if stem in BILINGUAL_CONCEPT_MAP:
                 tokens.update(BILINGUAL_CONCEPT_MAP[stem])
 
-        # 4. If word is Devanagari, also add its Latin topic skeleton
+        # 4. If word is Devanagari, also add its Latin topic skeleton (minimum 3 chars to prevent FTS prefix spam)
         if any('\u0900' <= ch <= '\u097f' for ch in w):
             t_key = topic_key(w)
-            if t_key and len(t_key) >= 2:
+            if t_key and len(t_key) >= 3:
                 tokens.add(t_key)
 
     return " ".join(tokens)
@@ -332,8 +405,10 @@ class SearchIndexer:
             dom = r["domain"]
             cat = r["category"]
 
-            # Derive readable tokens from title, path, and domain
-            path_cleaned = re.sub(r"[-_/]+", " ", path)
+            # Derive readable tokens from title, unquoted path, and domain
+            import urllib.parse
+            unquoted_path = urllib.parse.unquote(path)
+            path_cleaned = re.sub(r"[-_/]+", " ", unquoted_path)
             combined_text = f"{title} {path_cleaned} {dom}"
             search_toks = extract_search_tokens(combined_text)
 
