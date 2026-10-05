@@ -27,6 +27,8 @@ from praman.search.indexer import (
 )
 from praman.script import fold, topic_key, script_of
 from praman.intent import classify_intent, IntentResult
+from praman.search.suggestions import get_autocomplete_suggestions
+from praman.search.onebox import detect_onebox
 
 
 @dataclass
@@ -65,6 +67,8 @@ class SearchResponse:
     measured: bool = True
     tier_used: str = "exact"
     related_queries: list[str] = field(default_factory=list)
+    onebox: Optional[dict[str, Any]] = None
+    fallback_notice: Optional[str] = None
 
 
 INTENT_LABELS_MR: dict[str, str] = {
@@ -470,8 +474,36 @@ class MarathiSearchEngine:
                 if r["id"] not in seen_ids:
                     rows.append(r)
                     seen_ids.add(r["id"])
-            if len(rows) > len(rows):
+            if len(rows) > len(seen_ids):
                 tier_used = "relaxed"
+
+        # -------------------------------------------------------------
+        # Tier 3: Cross-Filter Relaxations (Fallback if 0 rows found)
+        # Never leave user stranded if query has results in other categories
+        # -------------------------------------------------------------
+        fallback_notice: Optional[str] = None
+
+        if not rows and freshness and freshness != "all":
+            rows = self._execute_fts_query(conn, tier1_fts, category, "all", sort_by)
+            if not rows and len(clusters) > 1:
+                tier2_fts = " OR ".join(cluster_clauses)
+                rows = self._execute_fts_query(conn, tier2_fts, category, "all", sort_by)
+            if rows:
+                fallback_notice = "निवडलेल्या कालमर्यादेत निकाल आढळले नाहीत, म्हणून सर्व काळातील निकाल दाखवत आहोत."
+
+        if not rows and category and category != "all":
+            rows = self._execute_fts_query(conn, tier1_fts, "all", "all", sort_by)
+            if not rows and len(clusters) > 1:
+                tier2_fts = " OR ".join(cluster_clauses)
+                rows = self._execute_fts_query(conn, tier2_fts, "all", "all", sort_by)
+            if rows:
+                cat_names = {
+                    "news": "बातम्या", "finance": "अर्थव्यवस्था", 
+                    "mpsc": "स्पर्धा परीक्षा", "agri": "कृषी", 
+                    "gov": "शासकीय", "knowledge": "ज्ञानकोश"
+                }
+                cat_mr = cat_names.get(category, category)
+                fallback_notice = f"'{cat_mr}' विभागात निकाल आढळले नाहीत, म्हणून संपूर्ण मराठी इंटरनेटवरील निकाल खाली दाखवले आहेत."
 
         # -------------------------------------------------------------
         # Pinned-Voice Hybrid Scoring (MATH.md §6 & METHODOLOGY.md §5)
@@ -578,6 +610,10 @@ class MarathiSearchEngine:
         # Generate related queries
         related = generate_related_queries(clean_q, final_results)
 
+        # Detect Sovereign OneBox Direct Answer card
+        onebox_card = detect_onebox(clean_q)
+        onebox_dict = onebox_card.to_dict() if onebox_card else None
+
         return SearchResponse(
             query=query,
             clean_query=clean_q,
@@ -592,6 +628,8 @@ class MarathiSearchEngine:
             measured=True,
             tier_used=tier_used,
             related_queries=related,
+            onebox=onebox_dict,
+            fallback_notice=fallback_notice,
         )
 
     def _execute_fts_query(
@@ -660,33 +698,6 @@ class MarathiSearchEngine:
         )
         return resp.results
 
-    def suggest(self, prefix: str, limit: int = 7) -> list[str]:
-        """Provides instant query autocompletions as the user types."""
-        clean_p = fold(prefix).strip()
-        if len(clean_p) < 2:
-            return []
-
-        conn = self.db.get_connection()
-        suggestions: list[str] = []
-
-        # 1. Search in indexed titles
-        try:
-            cur = conn.execute("""
-                SELECT title FROM pages_fts 
-                WHERE pages_fts MATCH ? 
-                LIMIT ?;
-            """, (f'"{clean_p}"*', limit * 2))
-            for row in cur.fetchall():
-                t = row["title"]
-                if t and t not in suggestions:
-                    # Keep snippet clean and short
-                    words = t.split()[:7]
-                    short_sugg = " ".join(words)
-                    if short_sugg not in suggestions:
-                        suggestions.append(short_sugg)
-                        if len(suggestions) >= limit:
-                            break
-        except Exception:
-            pass
-
-        return suggestions[:limit]
+    def suggest(self, prefix: str, limit: int = 8) -> list[str]:
+        """Provides instant high-quality query autocompletions as the user types."""
+        return get_autocomplete_suggestions(self.db, prefix, limit=limit)

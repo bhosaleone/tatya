@@ -302,9 +302,96 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         }
 
         .suggestion-item:last-child { border-bottom: none; }
-        .suggestion-item:hover {
-            background: var(--bg-card-hover);
+        .suggestion-item:hover, .suggestion-item.active {
+            background: #FEF3E2;
             color: var(--saffron-primary);
+        }
+        .suggestion-item.active {
+            font-weight: 600;
+        }
+
+        /* Sovereign OneBox Direct Answer Card */
+        .onebox-card {
+            background: #FFFFFF;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(43, 33, 24, 0.06);
+            border-left: 6px solid var(--saffron-primary);
+            border-top: 1px solid var(--border-subtle);
+            border-right: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
+            animation: fadeIn 0.3s ease-out;
+        }
+        .onebox-card.gold { border-left-color: #D97706; }
+        .onebox-card.emerald { border-left-color: #16A34A; }
+        .onebox-card.navy { border-left-color: #2563EB; }
+        .onebox-card.saffron { border-left-color: #E65100; }
+        .onebox-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .onebox-badge {
+            font-size: 13px;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 20px;
+            background: #FEF3E2;
+            color: #C2410C;
+        }
+        .onebox-card.gold .onebox-badge { background: #FEF3C7; color: #B45309; }
+        .onebox-card.emerald .onebox-badge { background: #DCFCE7; color: #15803D; }
+        .onebox-card.navy .onebox-badge { background: #DBEAFE; color: #1D4ED8; }
+        .onebox-source-link {
+            font-size: 13px;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+        .onebox-source-link:hover { color: var(--saffron-primary); text-decoration: underline; }
+        .onebox-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+            font-family: 'Noto Serif Devanagari', serif;
+        }
+        .onebox-summary {
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        .onebox-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+            background: var(--bg-base);
+            padding: 16px;
+            border-radius: 12px;
+        }
+        .onebox-item {
+            font-size: 14px;
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        /* Fallback Banner */
+        .fallback-banner {
+            background: #FEF3C7;
+            border: 1px solid #FCD34D;
+            color: #92400E;
+            padding: 12px 18px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         /* Filter Controls */
@@ -2057,13 +2144,38 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             doSearch();
         }
 
-        // Live Suggestions
+        // Google-like Autocomplete with Keyboard Navigation & Dynamic Icons
         let debounceTimer;
+        let activeSuggestionIndex = -1;
+        let currentSuggestions = [];
+
+        function getSuggestionIcon(text) {
+            const t = text.toLowerCase();
+            if (t.includes('शेअर') || t.includes('फंड') || t.includes('sip') || t.includes('गुंतवणूक')) return '📈';
+            if (t.includes('कांदा') || t.includes('शेतकरी') || t.includes('सोयाबीन') || t.includes('कापूस')) return '🌾';
+            if (t.includes('लाडकी') || t.includes('योजना') || t.includes('शासन') || t.includes('जीआर')) return '📜';
+            if (t.includes('सातबारा') || t.includes('७/१२') || t.includes('फेरफार')) return '🏛️';
+            if (t.includes('mpsc') || t.includes('भरती') || t.includes('परीक्ष')) return '🎓';
+            return '🔍';
+        }
+
+        function highlightMatch(fullText, query) {
+            if (!query) return fullText;
+            const idx = fullText.toLowerCase().indexOf(query.toLowerCase());
+            if (idx === -1) return fullText;
+            const before = fullText.slice(0, idx);
+            const match = fullText.slice(idx, idx + query.length);
+            const after = fullText.slice(idx + query.length);
+            return `${before}<b>${match}</b>${after}`;
+        }
+
         searchInput.addEventListener('input', () => {
             clearTimeout(debounceTimer);
+            activeSuggestionIndex = -1;
             const val = searchInput.value.trim();
             if (val.length < 2) {
                 suggestionsBox.style.display = 'none';
+                currentSuggestions = [];
                 return;
             }
             debounceTimer = setTimeout(async () => {
@@ -2071,21 +2183,57 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     const resp = await fetch(`/api/suggest?q=${encodeURIComponent(val)}`);
                     const data = await resp.json();
                     if (data.suggestions && data.suggestions.length > 0) {
-                        suggestionsBox.innerHTML = data.suggestions.map(s => `
-                            <div class="suggestion-item" onclick="pickSuggestion('${escapeJsString(s)}')">
-                                <span style="color: var(--saffron-primary);">🔍</span>
-                                <span>${s}</span>
+                        currentSuggestions = data.suggestions;
+                        suggestionsBox.innerHTML = data.suggestions.map((s, idx) => `
+                            <div class="suggestion-item" id="sugg-${idx}" onclick="pickSuggestion('${escapeJsString(s)}')">
+                                <span style="font-size: 15px;">${getSuggestionIcon(s)}</span>
+                                <span style="flex: 1;">${highlightMatch(s, val)}</span>
                             </div>
                         `).join('');
                         suggestionsBox.style.display = 'block';
                     } else {
                         suggestionsBox.style.display = 'none';
+                        currentSuggestions = [];
                     }
                 } catch(e) {
                     suggestionsBox.style.display = 'none';
+                    currentSuggestions = [];
                 }
-            }, 180);
+            }, 120);
         });
+
+        // Keyboard Navigation (ArrowUp, ArrowDown, Enter, Escape)
+        searchInput.addEventListener('keydown', (e) => {
+            if (suggestionsBox.style.display === 'none' || currentSuggestions.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                activeSuggestionIndex = (activeSuggestionIndex + 1) % currentSuggestions.length;
+                updateActiveSuggestion();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                activeSuggestionIndex = (activeSuggestionIndex - 1 + currentSuggestions.length) % currentSuggestions.length;
+                updateActiveSuggestion();
+            } else if (e.key === 'Enter') {
+                if (activeSuggestionIndex >= 0 && activeSuggestionIndex < currentSuggestions.length) {
+                    e.preventDefault();
+                    pickSuggestion(currentSuggestions[activeSuggestionIndex]);
+                }
+            } else if (e.key === 'Escape') {
+                suggestionsBox.style.display = 'none';
+            }
+        });
+
+        function updateActiveSuggestion() {
+            document.querySelectorAll('.suggestion-item').forEach((el, idx) => {
+                if (idx === activeSuggestionIndex) {
+                    el.classList.add('active');
+                    searchInput.value = currentSuggestions[idx];
+                } else {
+                    el.classList.remove('active');
+                }
+            });
+        }
 
         document.addEventListener('click', (e) => {
             if (!searchInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
@@ -2136,8 +2284,30 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 metaHtml += `<span>पद्धती: <b>${data.tier_used === 'exact' ? 'अचूक संकल्पना जुळणी (Conjunction)' : 'विस्तारित जुळणी (Relaxed OR)'}</b></span>`;
                 resultsMeta.innerHTML = metaHtml;
 
+                // Prepend Sovereign OneBox & Fallback Banner
+                let prefixHtml = '';
+                if (data.fallback_notice) {
+                    prefixHtml += `<div class="fallback-banner"><span>ℹ️</span> <span>${data.fallback_notice}</span></div>`;
+                }
+
+                if (data.onebox) {
+                    prefixHtml += `
+                        <div class="onebox-card ${data.onebox.color_accent || 'saffron'}">
+                            <div class="onebox-header">
+                                <span class="onebox-badge">${data.onebox.badge_label}</span>
+                                ${data.onebox.source_url ? `<a href="${data.onebox.source_url}" target="_blank" rel="noopener" class="onebox-source-link">${data.onebox.source_label} ↗</a>` : ''}
+                            </div>
+                            <h3 class="onebox-title">${data.onebox.title}</h3>
+                            <p class="onebox-summary">${data.onebox.summary}</p>
+                            <div class="onebox-grid">
+                                ${data.onebox.highlights.map(h => `<div class="onebox-item">${h}</div>`).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
                 if (data.results.length === 0) {
-                    resultsBox.innerHTML = `
+                    resultsBox.innerHTML = prefixHtml + `
                         <div class="empty-state">
                             <h3>कोणतेही निकाल आढळले नाहीत</h3>
                             <p style="margin-top: 6px;">वेगळ्या मराठी शब्दाने शोधून पहा किंवा कालानुरूपता व वर्गवारी 'सर्व' ठेवा.</p>
@@ -2147,7 +2317,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 }
 
                 // Render Result Cards
-                resultsBox.innerHTML = data.results.map((r, idx) => `
+                resultsBox.innerHTML = prefixHtml + data.results.map((r, idx) => `
                     <article class="result-card">
                         <div class="result-meta-top">
                             <span class="domain-tag">${r.domain}</span>
@@ -2468,6 +2638,8 @@ class SearchRequestHandler(http.server.SimpleHTTPRequestHandler):
                 "tier_used": resp.tier_used,
                 "measured": resp.measured,
                 "related_queries": resp.related_queries,
+                "onebox": resp.onebox,
+                "fallback_notice": resp.fallback_notice,
                 "results": [
                     {
                         "url": r.url,
